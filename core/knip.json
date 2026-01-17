@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "include": ["files", "duplicates"],
+  "entry": [
+    "src/webhook-server.ts",
+    "src/trigger/**/*.ts",
+    "trigger.config.ts",
+    "src/.opencode/tool/*.ts"
+  ],
+  "project": ["src/**/*.ts"],
+  "ignore": [
+    "src/.opencode-runtime/**/*",
+    "dist/**/*",
+    "eslint.config.js"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": [
+    "@dopplerhq/node-sdk",
+    "@trigger.dev/build",
+    "opencode-linux-x64",
+    "tsc-alias",
+    "tsconfig-paths"
+  ]
+}

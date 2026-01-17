@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+package-lock.json
+bun.lock
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Trigger.dev
+.trigger/dev.lock
+
+# Build artifacts
+.opencode-bundled-tools/
+src/.opencode/tool-bundled/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OpenCode bundled runtime files (generated during build)
+src/.opencode-runtime/

@@ -128,9 +128,8 @@ async function loggingFetch(input: string | URL | Request, init?: RequestInit): 
 
 /**
  * Clean up stale OpenCode storage from previous sessions.
- * Note (Kevin, 2026-01-06): OpenCode stores session data in ~/.local/share/opencode/storage/.
- * On Trigger.dev, containers can be reused (Checkpoint-Resume system), causing storage to accumulate.
- * This runs ONLY at startup before any session exists - safe because previous sessions are stale.
+ * OpenCode stores session data in ~/.local/share/opencode/storage/.
+ * This runs at startup before any session exists to prevent storage accumulation.
  */
 function cleanupOpenCodeStorage(): void {
   const storagePath = path.join(os.homedir(), ".local", "share", "opencode", "storage");
@@ -156,24 +155,12 @@ async function ensureOpenCode(): Promise<{ url: string; port: number; client: Op
     return { url: serverInfo.url, port: serverInfo.port, client: serverInfo.client };
   }
 
-  // Note (Kevin, 2026-01-06): Clean up stale storage from previous Trigger.dev runs
-  // Must happen before any session is created (serverInfo check above ensures this)
   cleanupOpenCodeStorage();
 
-  // Note (Kevin, 2026-01-06): Set OPENCODE_CONFIG_DIR so OpenCode auto-discovers tools from our runtime directory
-  // Tools are pre-bundled .js files in src/.opencode-runtime/tool/
-  // Note (Kevin, 2026-01-08): In Trigger.dev production, additionalFiles strips ".." from paths,
-  // so "src/.opencode-runtime" ends up at ".opencode-runtime" in the container root.
-  // See: https://replohq.slack.com/archives/C08N6PJTK2Q/p1756405171439939
   const cwd = process.cwd();
-  const isTriggerProduction = process.env.IS_TRIGGER && process.env.NODE_ENV === "production";
-  const runtimeDir = path.join(
-    cwd,
-    isTriggerProduction ? "" : "src",
-    ".opencode-runtime"
-  );
+  const runtimeDir = path.join(cwd, "src", ".opencode-runtime");
   process.env.OPENCODE_CONFIG_DIR = runtimeDir;
-  logger.info(`[OpenCode] Set OPENCODE_CONFIG_DIR to ${runtimeDir} (IS_TRIGGER=${process.env.IS_TRIGGER}, NODE_ENV=${process.env.NODE_ENV})`);
+  logger.info(`[OpenCode] Set OPENCODE_CONFIG_DIR to ${runtimeDir}`);
 
 
   const toolDir = path.join(runtimeDir, "tool");
@@ -356,19 +343,8 @@ read /tmp/replee-abc123/src/auth/login.ts
 - Never guess - read actual code`;
 
   try {
-    // Try to read from runtime directory first (production), then source directory (development)
-    // Note (Kevin, 2026-01-08): In Trigger.dev production, additionalFiles strips ".." from paths,
-    // so "src/.opencode-runtime" ends up at ".opencode-runtime" in the container root.
-    const isTriggerProduction = process.env.IS_TRIGGER && process.env.NODE_ENV === "production";
-    const runtimePath = path.join(
-      process.cwd(),
-      isTriggerProduction ? "" : "src",
-      ".opencode-runtime",
-      "agent",
-      "replee.md"
-    );
+    const runtimePath = path.join(process.cwd(), "src", ".opencode-runtime", "agent", "replee.md");
     const sourcePath = path.join(process.cwd(), "src", ".opencode", "agent", "replee.md");
-
     const promptPath = fs.existsSync(runtimePath) ? runtimePath : sourcePath;
     if (fs.existsSync(promptPath)) {
       const content = fs.readFileSync(promptPath, "utf-8");
@@ -388,7 +364,6 @@ read /tmp/replee-abc123/src/auth/login.ts
 
 /**
  * OpenCode base configuration
- * Note (Kevin, 2026-01-06): Inlined from opencode.jsonc to avoid file parsing issues in Trigger.dev
  */
 const OPENCODE_CONFIG = {
   // Auto-share all sessions so we can watch them
@@ -613,8 +588,6 @@ export async function createSession(title?: string, cwd?: string): Promise<strin
 
 /**
  * Get the last assistant response text from a session
- * Note (Kevin, 2026-01-06): Fetches messages after session completes instead of accumulating
- * during streaming to reduce memory usage on Trigger.dev
  */
 export async function getLastAssistantResponse(sessionId: string, cwd?: string): Promise<string> {
   const client = await getClient(cwd);
@@ -896,7 +869,6 @@ export async function prompt(
   logger.info(`[OpenCode] Calling session.prompt() with agent: ${agentToUse}, model: ${modelToUse ? `${modelToUse.provider}/${modelToUse.model}` : "default"}...`);
   const startTime = Date.now();
 
-  // Match Trigger.dev maxDuration
   const PROMPT_TIMEOUT_MS = MAX_TASK_DURATION_MS;
 
   // Check if callback was pre-registered, otherwise create one now

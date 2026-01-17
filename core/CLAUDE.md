@@ -2,16 +2,26 @@
 
 Guidance for Claude Code when working with this repository.
 
-## About Replee
+## About Jarvis
 
-Replee is an AI assistant for software teams that integrates with Linear, Slack, Sentry, and GitHub.
+Jarvis is a local-first AI assistant for software development. It uses OpenCode as the agentic harness with GitHub integration for self-improvement capabilities.
 
 ## Building and Testing
 
 ```bash
-pnpm test            # Run all tests
-pnpm tsc             # TypeScript compilation
-pnpm lint            # ESLint linting
+pnpm install         # Install dependencies
+pnpm build           # TypeScript compilation
+pnpm lint            # ESLint
+pnpm typecheck       # Type checking only
+```
+
+## Development
+
+```bash
+pnpm dev ask "your question"   # Run CLI
+pnpm dev serve                 # Start local API server
+pnpm dev config                # Check configuration
+pnpm dev health                # Check service connectivity
 ```
 
 ## Code Quality

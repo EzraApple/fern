@@ -2,19 +2,17 @@ import express, { Request, Response, NextFunction } from "express";
 import { logger, getConfig } from "@/config/index.js";
 import * as github from "@/services/integrations/github.js";
 import { cacheGet, cacheSet } from "@/services/cache.js";
+import { runChatAgent } from "@/agents/chat-agent.js";
 
 /**
- * Webhook Server (Express)
+ * Local API Server (Express)
  *
- * HTTP server for receiving webhooks.
- * Stripped down for local-first operation - only GitHub webhooks are active.
- * Linear and Notion endpoints are stubbed for future mocking.
+ * HTTP server for local AI assistant interactions and GitHub webhooks.
  *
  * Endpoints:
+ * - POST /api/chat        - Send a message to the agent
+ * - GET  /api/health      - Health check
  * - POST /webhooks/github - GitHub webhooks (PR/issue comments)
- * - POST /webhooks/linear - Stubbed (returns 200)
- * - POST /webhooks/notion - Stubbed (returns 200)
- * - GET  /health          - Health check
  */
 
 const PORT = parseInt(process.env.WEBHOOK_PORT ?? "7829", 10);
@@ -45,41 +43,62 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-app.get("/health", (_req: Request, res: Response) => {
+app.get("/api/health", (_req: Request, res: Response) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
     endpoints: {
-      github: "/webhooks/github",
-      linear: "/webhooks/linear (stubbed)",
-      notion: "/webhooks/notion (stubbed)",
+      chat: "POST /api/chat",
+      health: "GET /api/health",
+      github: "POST /webhooks/github",
     },
   });
 });
 
-app.post("/webhooks/linear", async (_req: Request, res: Response) => {
-  logger.info(`[Webhook] Linear webhook received (stubbed - not processed)`);
-  res.json({ received: true, status: "stubbed" });
+app.get("/health", (_req: Request, res: Response) => {
+  res.redirect("/api/health");
 });
 
-app.post("/webhooks/notion", async (_req: Request, res: Response) => {
-  const payload = _req.body;
+app.post("/api/chat", async (req: Request, res: Response) => {
+  const { message, context } = req.body;
 
-  if (payload.verification_token) {
-    logger.info(`[Webhook] Notion verification challenge received`);
-    res.json({ challenge: payload.verification_token });
+  if (!message || typeof message !== "string") {
+    res.status(400).json({ error: "message is required and must be a string" });
     return;
   }
 
-  if (payload.challenge) {
-    logger.info(`[Webhook] Notion challenge received`);
-    res.json({ challenge: payload.challenge });
-    return;
-  }
+  logger.info(`[API] Chat request: ${message.slice(0, 50)}...`);
 
-  logger.info(`[Webhook] Notion webhook received (stubbed - not processed)`);
-  res.json({ received: true, status: "stubbed" });
+  try {
+    const result = await runChatAgent({
+      message,
+      source: { type: "cli" },
+      context: context || undefined,
+    });
+
+    if (!result.success) {
+      res.status(500).json({
+        success: false,
+        error: result.error,
+        sessionId: result.sessionId,
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      sessionId: result.sessionId,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`[API] Chat error: ${errorMessage}`);
+    res.status(500).json({
+      success: false,
+      error: errorMessage,
+    });
+  }
 });
+
 
 let cachedBotUsername: string | null = null;
 
@@ -288,25 +307,25 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 function warmupInBackground(): void {
   getConfig();
   getBotUsername().catch(() => {});
-  logger.info("[Webhook] Background warmup started");
+  logger.info("[Server] Background warmup started");
 }
 
-export function startWebhookServer(): void {
+export function startWebhookServer(port?: number): void {
   warmupInBackground();
 
-  const server = app.listen(PORT, () => {
-    logger.info(`[Webhook] Server listening on port ${PORT}`);
-    logger.info(`[Webhook] Endpoints:`);
-    logger.info(`[Webhook]   POST /webhooks/github - GitHub webhooks`);
-    logger.info(`[Webhook]   POST /webhooks/linear - Stubbed`);
-    logger.info(`[Webhook]   POST /webhooks/notion - Stubbed`);
-    logger.info(`[Webhook]   GET  /health          - Health check`);
+  const serverPort = port ?? PORT;
+  const server = app.listen(serverPort, () => {
+    logger.info(`[Server] Jarvis API listening on port ${serverPort}`);
+    logger.info(`[Server] Endpoints:`);
+    logger.info(`[Server]   POST /api/chat        - Send message to agent`);
+    logger.info(`[Server]   GET  /api/health      - Health check`);
+    logger.info(`[Server]   POST /webhooks/github - GitHub webhooks`);
   });
 
   process.on("SIGTERM", () => {
-    logger.info("[Webhook] Shutting down...");
+    logger.info("[Server] Shutting down...");
     server.close(() => {
-      logger.info("[Webhook] Server closed");
+      logger.info("[Server] Server closed");
       process.exit(0);
     });
   });

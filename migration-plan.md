@@ -36,7 +36,6 @@ Transform the hosted Replee architecture into a **local-first personal AI assist
 - [ ] **Configure Ollama as primary provider.** Update OpenCode configuration to route requests to a local Ollama instance instead of OpenAI.
 - [ ] **Set up model routing for local models.** Adapt model selection logic to use appropriate local model weights (e.g., Llama, Mistral, CodeLlama).
 - [ ] **Test agent loop with local models.** Validate that the full agentic loop (tool calls, reasoning, multi-turn) functions correctly with local models.
-- [ ] **Optimize prompts for local models.** Adjust system prompts and tool descriptions to work better with smaller context windows.
 
 ### Phase 4: Chat Client
 - [ ] **Create clients directory structure.** Set up `clients/` at repo root with its own package for client applications.

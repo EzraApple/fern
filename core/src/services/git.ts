@@ -20,7 +20,7 @@ const execAsync = promisify(exec);
 let sshKeySetup = false;
 
 /**
- * Setup SSH key from environment variable (for Trigger.dev cloud)
+ * Setup SSH key from environment variable
  */
 async function setupSSHKey(): Promise<string | null> {
   if (sshKeySetup) return null;

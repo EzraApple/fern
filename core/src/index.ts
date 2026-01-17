@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { runChatAgent } from "@/agents/chat-agent.js";
 import { logger, getConfig } from "@/config/index.js";
 import * as github from "@/services/integrations/github.js";
+import { startWebhookServer } from "@/webhook-server.js";
 
 const program = new Command();
 
@@ -94,6 +95,19 @@ program
       logger.error("Fatal error:", error);
       process.exit(1);
     }
+  });
+
+program
+  .command("serve")
+  .description("Start the local API server")
+  .option("-p, --port <port>", "Server port", "7829")
+  .action(async (options) => {
+    const port = parseInt(options.port, 10);
+    if (isNaN(port)) {
+      logger.error("Invalid port number");
+      process.exit(1);
+    }
+    startWebhookServer(port);
   });
 
 program.parse();

@@ -141,7 +141,7 @@ function detectPackageManager(workspace: string): "pnpm" | "npm" | "bun" {
 // ============================================================================
 
 /**
- * Setup SSH key from environment variable (for Trigger.dev cloud)
+ * Setup SSH key from environment variable (for cloud environments)
  */
 export function setupSSHKey(): string | null {
   const sshKey = process.env.SSH_PRIVATE_KEY;

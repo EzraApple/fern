@@ -2,8 +2,6 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "include": ["files", "duplicates"],
   "entry": [
-    "src/index.ts",
-    "src/webhook-server.ts",
     "src/.opencode/tool/*.ts"
   ],
   "project": ["src/**/*.ts"],

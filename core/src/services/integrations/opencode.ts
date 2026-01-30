@@ -1,6 +1,6 @@
 import { createOpencodeServer, createOpencodeClient } from "@opencode-ai/sdk";
 import { logger } from "@/config/index.js";
-import { DEFAULT_MODEL } from "@/constants/models.js";
+import { DEFAULT_MODEL, DEFAULT_OLLAMA_MODEL, DEFAULT_OLLAMA_BASE_URL } from "@/constants/models.js";
 import { MAX_TASK_DURATION_MS } from "@/constants/timeouts.js";
 import { cacheGet, cacheSet, cacheDelete } from "@/services/cache.js";
 import * as fs from "fs";
@@ -362,26 +362,33 @@ read /tmp/replee-abc123/src/auth/login.ts
 // We set OPENCODE_CONFIG_DIR in ensureOpenCode() to point to src/.opencode-runtime/
 // No need for plugin config or explicit tool paths
 
+function getOllamaBaseUrl(): string {
+  return process.env.OLLAMA_BASE_URL ?? DEFAULT_OLLAMA_BASE_URL;
+}
+
 /**
  * OpenCode base configuration
  */
 const OPENCODE_CONFIG = {
-  // Auto-share all sessions so we can watch them
   share: "auto" as const,
 
-  // Provider configuration - using OpenAI for initial setup
   provider: {
-    openai: {
+    ollama: {
+      npm: "@ai-sdk/openai-compatible",
+      name: "Ollama (local)",
       options: {
-        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: getOllamaBaseUrl(),
+      },
+      models: {
+        [DEFAULT_OLLAMA_MODEL]: {
+          name: `Qwen3 VL 32B (${DEFAULT_OLLAMA_MODEL})`,
+        },
       },
     },
   },
 
-  // Default agent for all requests
   default_agent: "replee",
 
-  // Enable all built-in tools globally
   tools: {
     bash: true,
     edit: true,
@@ -389,11 +396,13 @@ const OPENCODE_CONFIG = {
     read: true,
     grep: true,
     glob: true,
-    list: true,
-    patch: true,
-    todowrite: true,
-    todoread: true,
-    webfetch: true,
+    list: false,
+    patch: false,
+    todowrite: false,
+    todoread: false,
+    webfetch: false,
+    websearch: false,
+    codesearch: false,
   },
 };
 

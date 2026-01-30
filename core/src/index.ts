@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
+import "dotenv/config";
 import { Command } from "commander";
 import { runChatAgent } from "@/agents/chat-agent.js";
 import { logger, getConfig } from "@/config/index.js";
 import * as github from "@/services/integrations/github.js";
+import { unloadOllamaModel } from "@/services/integrations/ollama.js";
 import { startWebhookServer } from "@/webhook-server.js";
 
 const program = new Command();
@@ -51,7 +53,9 @@ program
 
       console.log("\nConfiguration:");
       console.log("==============");
-      console.log(`OpenAI API Key: ${config.opencode.apiKey ? "✓ Set" : "✗ Missing"}`);
+      console.log(`Ollama Base URL: ${config.ollama.baseUrl}`);
+      console.log(`Ollama Model: ${config.ollama.model}`);
+      console.log(`OpenAI API Key: ${config.openai.apiKey ? "✓ Set (fallback)" : "✗ Not set"}`);
       console.log(`GitHub Token: ${config.github.token ? "✓ Set" : "✗ Missing"}`);
       console.log(`\nWebhook:`);
       console.log(`  Port: ${config.webhook.port}`);
@@ -87,12 +91,15 @@ program
 
       if (!result.success) {
         logger.error(`Failed: ${result.error}`);
+        await unloadOllamaModel();
         process.exit(1);
       }
 
       logger.info("Done!");
+      await unloadOllamaModel();
     } catch (error) {
       logger.error("Fatal error:", error);
+      await unloadOllamaModel();
       process.exit(1);
     }
   });

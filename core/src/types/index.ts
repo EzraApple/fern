@@ -5,8 +5,12 @@ import { z } from "zod";
 // ============================================================================
 
 export const ConfigSchema = z.object({
-  opencode: z.object({
-    apiKey: z.string().min(1, "OPENAI_API_KEY is required"),
+  ollama: z.object({
+    baseUrl: z.string().default("http://localhost:11434"),
+    model: z.string().default("qwen3-vl:32b"),
+  }),
+  openai: z.object({
+    apiKey: z.string().optional(),
   }),
   github: z.object({
     token: z.string().optional(),

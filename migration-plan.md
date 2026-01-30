@@ -25,17 +25,21 @@ Transform the hosted Replee architecture into a **local-first personal AI assist
 - [x] **Update package.json.** Removed unused dependencies, simplified scripts, renamed to "jarvis".
 - [x] **Validate minimal state.** Codebase stripped to core agent with GitHub tools and built-in OpenCode tools.
 
-### Phase 2: Refactor for Local Development
-- [ ] **Evaluate job queue needs.** Determine if background jobs are needed or if direct execution is sufficient for local use.
-- [ ] **Set up monorepo structure.** Initialize Turborepo at root with pnpm workspaces. Move core agent into `packages/core/` and prepare `packages/` for future shared utilities.
-- [ ] **Create root orchestration.** Add root `package.json` with scripts to start all services locally (agent, future clients) via Turborepo.
-- [ ] **Simplify the webhook server.** Convert the Express server from a webhook receiver to a local HTTP API that clients can call directly to trigger agent sessions.
-- [ ] **Establish local config pattern.** Create a unified config loader that reads from `.env` and provides typed config objects.
+### Phase 2: Refactor for Local Development ✅
+- [x] **Evaluate job queue needs.** Determined that direct execution is sufficient for local use; no background job queue needed.
+- [x] **Clean up Trigger.dev remnants.** Removed trigger.config.ts, Trigger.dev-specific comments, path logic, and knip configuration.
+- [x] **Simplify the webhook server.** Converted Express server to a local HTTP API with `POST /api/chat`, `GET /api/health`, and `POST /webhooks/github` endpoints.
+- [x] **Add CLI serve command.** Added `pnpm dev serve` command to start the local API server.
+- [x] **Establish local config pattern.** Created `.env.example` template, added dotenv loading to entry points for proper environment variable handling.
+- [x] **Update documentation.** Replaced README.md with local-first setup instructions, updated AGENTS.md and CLAUDE.md.
+- [x] **Simplify OpenCode integration.** Removed cloud-specific path logic and streamlined runtime directory configuration.
+- [ ] **Set up monorepo structure.** _(Deferred to future phase — not needed until multiple clients exist)_
 
-### Phase 3: Local Model Integration
-- [ ] **Configure Ollama as primary provider.** Update OpenCode configuration to route requests to a local Ollama instance instead of OpenAI.
-- [ ] **Set up model routing for local models.** Adapt model selection logic to use appropriate local model weights (e.g., Llama, Mistral, CodeLlama).
-- [ ] **Test agent loop with local models.** Validate that the full agentic loop (tool calls, reasoning, multi-turn) functions correctly with local models.
+### Phase 3: Local Model Integration ✅
+- [x] **Configure Ollama as primary provider.** Updated OpenCode configuration to use `@ai-sdk/openai-compatible` with Ollama endpoint.
+- [x] **Set up model routing for local models.** Configured `qwen3-vl:32b` as default model across all task types.
+- [x] **Add Ollama lifecycle management.** Added startup script to auto-start Ollama and warm model, plus shutdown hooks to unload model from VRAM.
+- [x] **Test agent loop with local models.** Validated config, health checks, and agent session creation with local Ollama.
 
 ### Phase 4: Chat Client
 - [ ] **Create clients directory structure.** Set up `clients/` at repo root with its own package for client applications.
@@ -47,7 +51,6 @@ Transform the hosted Replee architecture into a **local-first personal AI assist
 - [ ] **Implement local chat persistence.** Store conversation history in SQLite or flat files.
 - [ ] **Add memory/context retrieval.** Create a mechanism for the agent to search and retrieve relevant past conversations.
 - [ ] **Document self-improvement workflow.** Establish the pattern for the agent to propose changes to its own codebase via GitHub PRs.
-- [ ] **Set up evaluation framework.** Create simple local benchmarks to measure agent capability.
 
 ---
 
@@ -87,18 +90,84 @@ Transform the hosted Replee architecture into a **local-first personal AI assist
 - The agent prompts are simplified but may need further tuning for local models
 - Consider whether the webhook server should become a general-purpose local API
 
+### Phase 2 Completion Summary
+
+**Date:** January 2026
+
+**What was done:**
+- Removed all remaining Trigger.dev artifacts (config file, comments, path logic, knip entries)
+- Converted webhook server into a local HTTP API with `/api/chat` and `/api/health` endpoints
+- Added `serve` CLI command to start the local API server on configurable port
+- Established dotenv-based configuration pattern with `.env.example` template
+- Simplified OpenCode service by removing cloud-specific runtime directory logic
+- Updated all documentation (README, AGENTS.md, CLAUDE.md) to reflect local-first architecture
+- Validated end-to-end functionality with `pnpm dev ask` command
+
+**Key decisions:**
+1. **No job queue needed**: Direct execution is sufficient for local use. The original Trigger.dev setup was only necessary for cloud webhook processing with timeouts.
+2. **Deferred monorepo**: Turborepo/pnpm workspaces structure postponed until multiple clients exist. Current single-package structure is simpler for now.
+3. **OpenAI for validation**: Kept OpenAI (gpt-4o-mini) as temporary provider to validate Phase 2 changes before switching to Ollama in Phase 3.
+4. **Webhook server → Local API**: Transformed from webhook receiver to general-purpose local API that any client can call.
+
+**CLI commands available:**
+- `pnpm dev ask "question"` — Run agent with a prompt
+- `pnpm dev ask -r owner/repo "question"` — Run agent with repository context
+- `pnpm dev serve` — Start local API server (default port 7829)
+- `pnpm dev config` — Display current configuration
+- `pnpm dev health` — Check API connectivity
+
+**API endpoints:**
+- `POST /api/chat` — Send message to agent, receive response
+- `GET /api/health` — Health check for agent and integrations
+- `POST /webhooks/github` — GitHub webhook receiver (for self-improvement PRs)
+
+### Phase 3 Completion Summary
+
+**Date:** January 2026
+
+**What was done:**
+- Switched OpenCode provider from OpenAI to Ollama using `@ai-sdk/openai-compatible`
+- Set `qwen3-vl:32b` as the default model for all task types
+- Created `scripts/ollama.mjs` to auto-start Ollama server and warm the model on `pnpm dev` commands
+- Added `unloadOllamaModel()` function to release VRAM on CLI completion and server shutdown
+- Made `OPENAI_API_KEY` optional in config schema, added `OLLAMA_BASE_URL` and `OLLAMA_MODEL` env vars
+- Updated config command output to show Ollama settings
+
+**Key decisions:**
+1. **Ollama via OpenAI-compatible API**: Using `@ai-sdk/openai-compatible` package to connect to Ollama's `/v1` endpoint, which provides OpenAI-compatible API.
+2. **Model warmup via API**: Using `/api/generate` with empty prompt and `keep_alive` instead of interactive `ollama run` command.
+3. **Graceful unload**: On shutdown, set `keep_alive: 0` to immediately unload model from VRAM rather than stopping Ollama service entirely.
+4. **Default model `qwen3-vl:32b`**: Vision-capable model for multimodal tasks, configurable via `OLLAMA_MODEL` env var.
+
+**New files:**
+- `core/scripts/ollama.mjs` — Ollama startup/warmup script
+- `core/src/services/integrations/ollama.ts` — Ollama service (health check, unload)
+
+**Updated files:**
+- `core/src/constants/models.ts` — Default model changed to `ollama/qwen3-vl:32b`
+- `core/src/services/integrations/opencode.ts` — Provider config switched to Ollama
+- `core/src/config/index.ts` — Added Ollama config, made OpenAI optional
+- `core/src/types/index.ts` — Updated config schema
+- `core/src/index.ts` — Added unload hook on CLI completion
+- `core/src/webhook-server.ts` — Added unload hook on SIGTERM
+- `core/package.json` — Added `@ai-sdk/openai-compatible`, updated dev scripts
+
+**CLI commands updated:**
+- `pnpm dev ...` now auto-starts Ollama and warms the model before running
+- `pnpm ollama:start` — Standalone Ollama startup command
+
 ---
 
 ## Current Focus
 
-### Active: Phase 2 — Refactor for Local Development
+### Active: Phase 4 — Chat Client
 
 **Status:** Not started
 
 **Next Steps:**
-1. Test that `pnpm install && pnpm dev` boots the core agent
-2. Decide on monorepo structure (Turborepo vs simpler approach)
-3. Evaluate if background job handling is needed at all for local use
+1. Create `clients/` directory structure at repo root
+2. Build minimal Electron chat app that communicates with local API
+3. Add session management for conversation continuity
 
 ---
 

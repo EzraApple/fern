@@ -1,8 +1,10 @@
+import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
 import { logger, getConfig } from "@/config/index.js";
 import * as github from "@/services/integrations/github.js";
 import { cacheGet, cacheSet } from "@/services/cache.js";
 import { runChatAgent } from "@/agents/chat-agent.js";
+import { unloadOllamaModel } from "@/services/integrations/ollama.js";
 
 /**
  * Local API Server (Express)
@@ -322,8 +324,9 @@ export function startWebhookServer(port?: number): void {
     logger.info(`[Server]   POST /webhooks/github - GitHub webhooks`);
   });
 
-  process.on("SIGTERM", () => {
+  process.on("SIGTERM", async () => {
     logger.info("[Server] Shutting down...");
+    await unloadOllamaModel();
     server.close(() => {
       logger.info("[Server] Server closed");
       process.exit(0);

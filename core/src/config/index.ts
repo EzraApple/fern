@@ -5,8 +5,12 @@ import { Config, ConfigSchema } from "@/types/index.js";
  */
 function loadConfig(): Config {
   const rawConfig = {
-    opencode: {
-      apiKey: process.env.OPENAI_API_KEY ?? "",
+    ollama: {
+      baseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
+      model: process.env.OLLAMA_MODEL ?? "qwen3-vl:32b",
+    },
+    openai: {
+      apiKey: process.env.OPENAI_API_KEY,
     },
     github: {
       token: process.env.GITHUB_TOKEN,

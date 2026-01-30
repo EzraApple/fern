@@ -3,18 +3,17 @@
  * Single source of truth - uses "provider/model" format.
  */
 
+export const DEFAULT_OLLAMA_MODEL = "qwen3-vl:32b";
+export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";
+
 /**
  * Task-based model configuration
  */
 export const TaskModels = {
-  // Code generation, debugging, refactoring
-  coding: "anthropic/claude-opus-4-5",
-  // Research, search, general Q&A
-  general: "anthropic/claude-opus-4-5",
-  // Summarizing responses
-  summarization: "google/gemini-2.0-flash",
-  // Video/image description
-  vision: "google/gemini-2.0-flash",
+  coding: `ollama/${DEFAULT_OLLAMA_MODEL}`,
+  general: `ollama/${DEFAULT_OLLAMA_MODEL}`,
+  summarization: `ollama/${DEFAULT_OLLAMA_MODEL}`,
+  vision: `ollama/${DEFAULT_OLLAMA_MODEL}`,
 } as const;
 
 export type TaskType = keyof typeof TaskModels;

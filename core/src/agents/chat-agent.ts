@@ -128,6 +128,7 @@ export async function runChatAgent(input: ChatAgentInput): Promise<ChatAgentResu
         } else if (event.type === "text") {
           sawActivity = true;
           if (event.message) {
+            process.stdout.write(event.message);
             statusThrottler.appendText(event.message);
           }
         } else if (event.type === "thinking") {
@@ -186,6 +187,8 @@ export async function runChatAgent(input: ChatAgentInput): Promise<ChatAgentResu
     const responseText = await getLastAssistantResponse(sessionId);
 
     if (responseText.trim()) {
+      logger.info(`[ChatAgent] Model response (${responseText.length} chars):\n${"=".repeat(60)}\n${responseText.trim()}\n${"=".repeat(60)}`);
+
       const noResponseMarkers = ["[NO_RESPONSE]", "[SKIP]", "[NO RESPONSE NEEDED]"];
       const shouldSkipResponse = noResponseMarkers.some(marker =>
         responseText.toUpperCase().includes(marker)

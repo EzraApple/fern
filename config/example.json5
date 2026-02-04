@@ -1,0 +1,111 @@
+// Jarvis Configuration
+// Copy to local.json5 and fill in your values
+{
+  // LLM Provider Configuration
+  providers: {
+    anthropic: {
+      apiKey: "sk-ant-...",
+      // Model fallback chain
+      models: {
+        primary: "claude-sonnet-4-20250514",
+        fallbacks: ["claude-3-5-sonnet-20241022"]
+      }
+    },
+    openai: {
+      apiKey: "sk-...",
+      models: {
+        primary: "gpt-4-turbo"
+      }
+    }
+  },
+
+  // Channel Configuration
+  channels: {
+    telegram: {
+      enabled: true,
+      botToken: "123456:ABC-...",
+      // Channel-specific prompt injected into system context
+      channelPrompt: "Tone: casual, concise. Supports markdown."
+    },
+    whatsapp: {
+      enabled: false,
+      // Uses Baileys library
+      sessionPath: "./sessions/whatsapp",
+      channelPrompt: "Tone: friendly, plain text only. No markdown."
+    },
+    webchat: {
+      enabled: false,
+      port: 3000,
+      channelPrompt: "Full markdown supported. Streaming enabled."
+    }
+  },
+
+  // Tool Permissions
+  permissions: {
+    // Base profile: "coding" | "messaging" | "minimal"
+    baseProfile: "coding",
+
+    // Channel-level restrictions
+    channelRestrictions: {
+      telegram: {
+        deny: ["bash"]  // No shell commands from Telegram
+      },
+      whatsapp: {
+        deny: ["bash", "edit", "write"]  // Read-only from WhatsApp
+      }
+    },
+
+    // Path-level overrides
+    pathOverrides: [
+      { pattern: "*.env", action: "deny" },
+      { pattern: "*.pem", action: "deny" },
+      { pattern: "/tmp/*", action: "allow" }
+    ]
+  },
+
+  // Memory Configuration
+  memory: {
+    // Session memory (JSONL)
+    sessionDir: "./sessions",
+    maxTurnsBeforeCompaction: 50,
+
+    // Persistent memory (markdown + vector)
+    persistentDir: "./memory",
+    vectorStore: {
+      type: "lancedb",
+      path: "./memory/vectors"
+    },
+    embeddings: {
+      provider: "openai",
+      model: "text-embedding-3-small"
+    }
+  },
+
+  // Scheduler Configuration
+  scheduler: {
+    enabled: true,
+    checkIntervalMs: 60000,  // Check every minute
+    jobsPath: "./jobs.jsonl"
+  },
+
+  // Self-Improvement Configuration
+  selfImprove: {
+    enabled: true,
+    selfRepo: "EzraApple/jarvis",
+    workspaceDir: "./workspaces",
+    // Tools allowed when modifying self-repo
+    allowedTools: ["read", "edit", "write", "bash", "github_pr"],
+    // These are ALWAYS denied for self-repo
+    deniedTools: ["github_merge", "deploy"]
+  },
+
+  // Cost Tracking
+  costs: {
+    trackingEnabled: true,
+    // No hard limits, just tracking
+    alertThresholds: {
+      session: 1.00,   // Alert if single session exceeds $1
+      daily: 10.00     // Alert if daily total exceeds $10
+    }
+  }
+}

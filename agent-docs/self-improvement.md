@@ -1,13 +1,13 @@
 ---
 name: Self-Improvement
 description: |
-  How Jarvis modifies its own codebase through controlled PR submissions.
+  How Fern modifies its own codebase through controlled PR submissions.
   Reference when: implementing self-modification features, safety boundaries, GitHub integration, coding sub-agent.
 ---
 
 # Self-Improvement
 
-Jarvis can modify its own codebase, but only through controlled PR submissions that require human approval.
+Fern can modify its own codebase, but only through controlled PR submissions that require human approval.
 
 ## Core Safety Principle
 
@@ -75,7 +75,7 @@ async function createCodingWorkspace(repo: string): Promise<string> {
   await exec(`git clone ${repo} ${workspaceDir}`);
 
   // Create feature branch
-  await exec(`git checkout -b jarvis/${generateBranchName()}`, {
+  await exec(`git checkout -b fern/${generateBranchName()}`, {
     cwd: workspaceDir,
   });
 
@@ -190,7 +190,7 @@ const githubPrStatus = {
 Special rules when operating on the agent's own repository:
 
 ```typescript
-const SELF_REPO = process.env.SELF_REPO; // e.g., "EzraApple/jarvis"
+const SELF_REPO = process.env.SELF_REPO; // e.g., "EzraApple/fern"
 
 function isSelfRepo(repo: string): boolean {
   return repo.includes(SELF_REPO);
@@ -283,7 +283,7 @@ async function runImprovement(task: string): Promise<ImprovementResult> {
   // 4. Open PR
   const pr = await githubPr.execute({
     workspace,
-    title: `[Jarvis] ${task.slice(0, 50)}`,
+    title: `[Fern] ${task.slice(0, 50)}`,
     body: `
 ## Summary
 ${task}
@@ -295,7 +295,7 @@ ${result.filesChanged.map(f => `- ${f}`).join("\n")}
 - [x] Tests pass locally
 
 ---
-*This PR was created by Jarvis self-improvement.*
+*This PR was created by Fern self-improvement.*
     `,
   });
 

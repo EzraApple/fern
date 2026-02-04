@@ -1,13 +1,13 @@
 ---
 name: Memory System
 description: |
-  How the Jarvis memory system works - session and persistent memory.
+  How the Fern memory system works - session and persistent memory.
   Reference when: working with session memory, persistent memory, memory search/read, compaction, vector storage.
 ---
 
 # Memory System
 
-Jarvis has two types of memory:
+Fern has two types of memory:
 
 1. **Session Memory** - Conversation history (JSONL per session)
 2. **Persistent Memory** - Agent-written knowledge (markdown + vector index)

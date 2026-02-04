@@ -1,7 +1,7 @@
 ---
 name: Session Management
 description: |
-  How Jarvis manages sessions - JSONL format, context window, channel queues.
+  How Fern manages sessions - JSONL format, context window, channel queues.
   Reference when: working with session storage, managing context, handling concurrent messages, session lifecycle.
 ---
 

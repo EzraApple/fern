@@ -1,7 +1,7 @@
 /**
- * Jarvis - Self-improving headless AI agent
+ * Fern - Self-improving headless AI agent
  *
- * Entry point for the Jarvis agent runtime.
+ * Entry point for the Fern agent runtime.
  */
 
 export const VERSION = "0.1.0";

@@ -1,4 +1,4 @@
-# Jarvis Implementation Plan
+# Fern Implementation Plan
 
 A phased roadmap from MVP to full-featured self-improving agent.
 
@@ -63,7 +63,7 @@ Enable the agent to modify its own codebase through controlled PRs.
 - Basic skills: code review, refactor suggestions
 
 ### 2.4 Self-Repo Detection
-- Detect when operating on JARVIS_SELF_REPO
+- Detect when operating on FERN_SELF_REPO
 - Enforce PR requirement for self-modifications
 - Block dangerous operations (merge, deploy)
 

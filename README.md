@@ -1,4 +1,4 @@
-# Jarvis
+# Fern
 
 A self-improving headless AI agent that operates across multiple messaging channels (Telegram, WhatsApp, etc.) with persistent memory, parallel tool execution, and the ability to improve its own codebase through controlled PR submissions.
 
@@ -20,8 +20,8 @@ A self-improving headless AI agent that operates across multiple messaging chann
 
 ```bash
 # Clone the repo
-git clone git@github.com:EzraApple/jarvis.git
-cd jarvis
+git clone git@github.com:EzraApple/fern.git
+cd fern
 
 # Install dependencies (when implemented)
 npm install
@@ -37,7 +37,7 @@ npm start
 ## Project Structure
 
 ```
-jarvis/
+fern/
 ├── src/
 │   ├── core/           # Agent loop, session manager, provider manager
 │   ├── tools/          # Tool definitions and executor

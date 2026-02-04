@@ -1,7 +1,7 @@
 ---
 name: Implementing Channels
 description: |
-  How to add new channel adapters to Jarvis.
+  How to add new channel adapters to Fern.
   Reference when: adding new messaging platforms, implementing the unified interface, handling output formatting, channel prompts.
 ---
 

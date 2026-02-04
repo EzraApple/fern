@@ -1,7 +1,7 @@
 ---
 name: Implementing Tools
 description: |
-  How to add new tools to the Jarvis agent.
+  How to add new tools to the Fern agent.
   Reference when: adding new tools, classifying read vs write tools, implementing caching, integrating with permissions.
 ---
 

@@ -1,4 +1,4 @@
-// Jarvis Configuration
+// Fern Configuration
 // Copy to local.json5 and fill in your values
 {
   // LLM Provider Configuration
@@ -91,7 +91,7 @@
   // Self-Improvement Configuration
   selfImprove: {
     enabled: true,
-    selfRepo: "EzraApple/jarvis",
+    selfRepo: "EzraApple/fern",
     workspaceDir: "./workspaces",
     // Tools allowed when modifying self-repo
     allowedTools: ["read", "edit", "write", "bash", "github_pr"],

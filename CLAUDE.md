@@ -1,4 +1,4 @@
-# Jarvis
+# Fern
 
 A self-improving headless AI agent with multi-channel support (Telegram, WhatsApp, etc.), persistent memory, and the ability to modify its own codebase through controlled PR submissions.
 
@@ -25,7 +25,7 @@ See [docs/architecture.md](docs/architecture.md) for the full system design with
 | [general-architecture-patterns](agent-docs/general-architecture-patterns.md) | Building services/gateways, organizing backend code, error handling |
 | [general-service-method-naming](agent-docs/general-service-method-naming.md) | Naming service methods (get, find, create, update) |
 
-### Jarvis-Specific
+### Fern-Specific
 
 | Doc | Reference When |
 |-----|----------------|
@@ -38,7 +38,7 @@ See [docs/architecture.md](docs/architecture.md) for the full system design with
 ## Project Structure
 
 ```
-jarvis/
+fern/
 ├── src/
 │   ├── core/           # Agent loop, session manager, provider manager
 │   ├── tools/          # Tool definitions and executor

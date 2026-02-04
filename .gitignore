@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+sessions/
+memory/
+workspaces/
+
+# pnpm
+pnpm-debug.log
+
+# TypeScript
+*.tsbuildinfo
+
+# Test coverage
+coverage/

@@ -1,0 +1,31 @@
+{
+  "name": "jarvis",
+  "version": "0.1.0",
+  "description": "Self-improving headless AI agent with multi-channel support",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "tsc": "tsc --noEmit",
+    "knip": "knip",
+    "ci": "pnpm run lint && pnpm run tsc && pnpm run knip"
+  },
+  "keywords": ["ai", "agent", "llm", "telegram", "whatsapp", "self-improving"],
+  "author": "Ezra Apple",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/node": "^22.0.0",
+    "knip": "^5.0.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,20 @@
+// Fern Phase 1 Configuration
+// API key should be in .env as OPENAI_API_KEY
+{
+  // Model settings (using cheap model for testing)
+  model: {
+    provider: "openai",
+    model: "gpt-4o-mini"
+  },
+
+  // Session storage
+  storage: {
+    path: "~/.fern/sessions"
+  },
+
+  // HTTP server
+  server: {
+    port: 4000,
+    host: "127.0.0.1"
+  }
+}

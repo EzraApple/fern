@@ -2,68 +2,94 @@
 
 A self-improving headless AI agent that operates across multiple messaging channels (Telegram, WhatsApp, etc.) with persistent memory, parallel tool execution, and the ability to improve its own codebase through controlled PR submissions.
 
-## Features
+## Current Functionality
 
-- **Headless Core**: Long-running Node.js process that accepts work from any channel
-- **Multi-Channel Support**: Telegram, WhatsApp, WebChat, webhooks - add channels without core changes
-- **Memory System**: Session memory (JSONL) + persistent agent-written knowledge (markdown + vector search)
-- **Parallel Tool Execution**: Read operations run in parallel, writes sequential
-- **Tool Result Caching**: LRU cache with write-invalidation to avoid redundant operations
-- **Self-Improvement Loop**: Agent can modify its own code via PRs (never direct merge)
-- **Observability**: JSONL files ARE the logs - UI is a viewer over structured data
-- **Unified Permissions**: Profile + channel + path-level permission layers
-- **Scheduling**: Built-in cron for scheduled tasks and follow-ups
+Phase 1 MVP is working:
 
-## Quick Start
+- **Agent Loop**: Core message → LLM → tool execution → response cycle
+- **Session Storage**: JSONL-based conversation persistence with metadata
+- **Toy Tools**: `echo` and `time` tools for testing
+- **HTTP API**: Hono server with `/health` and `/chat` endpoints
+- **Configuration**: JSON5 config + .env support
 
-> Coming soon - project is in scaffold phase
+### Quick Start
 
 ```bash
-# Clone the repo
+# Clone and install
 git clone git@github.com:EzraApple/fern.git
 cd fern
+pnpm install
 
-# Install dependencies (when implemented)
-npm install
+# Set up environment (add your OpenAI API key)
+echo "OPENAI_API_KEY=sk-..." > .env
 
-# Configure (when implemented)
-cp config/example.json5 config/local.json5
-# Edit config/local.json5 with your API keys and channel credentials
-
-# Run (when implemented)
-npm start
+# Build and run
+pnpm run build
+pnpm run start
 ```
+
+### Test the API
+
+```bash
+# Health check
+curl http://localhost:4000/health
+
+# Chat (creates new session)
+curl -X POST http://localhost:4000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What time is it?"}'
+
+# Continue conversation (use sessionId from previous response)
+curl -X POST http://localhost:4000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId": "YOUR_SESSION_ID", "message": "What did I just ask?"}'
+```
+
+---
+
+## Planned Features
+
+- **Multi-Channel Support**: Telegram, WhatsApp, WebChat, webhooks
+- **Coding Tools**: read, edit, write, bash, glob, grep
+- **Memory System**: Persistent agent-written knowledge with vector search
+- **Parallel Tool Execution**: Read operations in parallel, writes sequential
+- **Tool Result Caching**: LRU cache with write-invalidation
+- **Self-Improvement Loop**: Agent modifies its own code via PRs
+- **Observability**: JSONL logs with UI viewer
+- **Unified Permissions**: Profile + channel + path-level permission layers
+- **Scheduling**: Built-in cron for scheduled tasks and follow-ups
 
 ## Project Structure
 
 ```
 fern/
 ├── src/
-│   ├── core/           # Agent loop, session manager, provider manager
-│   ├── tools/          # Tool definitions and executor
-│   ├── memory/         # Session + persistent memory
-│   ├── channels/       # Channel adapters (telegram, whatsapp, etc.)
-│   ├── scheduler/      # Cron/scheduling system
-│   └── self-improve/   # Coding sub-agent, GitHub integration
-├── docs/
-│   └── architecture.md # Comprehensive architecture documentation
-├── agent-docs/         # Development guidance for AI agents working on this codebase
-├── config/             # Configuration templates
-└── tests/
+│   ├── index.ts        # Entry point
+│   ├── core/           # Agent loop
+│   ├── config/         # Configuration loading
+│   ├── storage/        # JSONL session storage
+│   ├── tools/          # Tool definitions
+│   ├── server/         # HTTP server (Hono)
+│   ├── channels/       # Channel adapters (coming soon)
+│   ├── memory/         # Persistent memory (coming soon)
+│   └── scheduler/      # Cron/scheduling (coming soon)
+├── config/             # Configuration files
+├── agent-docs/         # AI development guidance
+└── ARCHITECTURE.md     # System design with diagrams
 ```
 
 ## Development Setup
 
 Requirements:
-- Node.js 22+
-- LanceDB (for vector memory)
-- API keys for LLM providers (Anthropic, OpenAI, etc.)
-- Channel credentials (Telegram bot token, WhatsApp via Baileys, etc.)
+- Node.js 20+ (22+ recommended)
+- pnpm
+- OpenAI API key (for gpt-4o-mini testing)
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) - Detailed system design with diagrams
-- [Agent Docs](agent-docs/) - Guides for AI-assisted development (coming soon)
+- [Architecture](ARCHITECTURE.md) - Detailed system design with diagrams
+- [Implementation Plan](IMPLEMENTATION_PLAN.md) - Phased roadmap
+- [Agent Docs](agent-docs/) - Guides for AI-assisted development
 
 ## Key Design Decisions
 

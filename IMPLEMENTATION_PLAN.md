@@ -8,34 +8,33 @@ A phased roadmap from MVP to full-featured self-improving agent.
 
 Get a basic working agent that can receive messages and respond.
 
-**Goal:** Prove the core loop works end-to-end with one channel.
+**Goal:** Prove the core loop works end-to-end before adding channels.
 
-### 1.1 Agent Loop
-- Implement core agent loop: receive → LLM call → tool execution → respond
-- Use Vercel AI SDK for LLM abstraction
-- Support Claude as primary provider
+### 1.1 Configuration
+- JSON5 config file for model, storage, server settings
+- Environment variable support (.env for API keys)
+- Default to gpt-4o-mini for cheap testing
 
-### 1.2 First Channel (Telegram)
-- Telegram bot adapter using grammyjs
-- Basic message receive/send
-- Session key derivation (channel + user)
-
-### 1.3 Session Storage
-- JSONL file per session
+### 1.2 Session Storage
+- JSONL file per session (~/.fern/sessions/{sessionId}/)
 - Append-only event log (messages, tool calls, results)
-- Session metadata (created, updated, message count)
+- Session metadata JSON (created, updated, message count)
 
-### 1.4 Basic Tools
-- `read` - Read file contents
-- `edit` - Edit files (search/replace)
-- `write` - Create new files
-- `bash` - Execute shell commands
-- `glob` - Find files by pattern
-- `grep` - Search file contents
+### 1.3 Toy Tools
+- `echo` - Echo back input text (test tool execution)
+- `time` - Return current date/time
+- Zod schema validation for parameters
 
-### 1.5 Configuration
-- JSON5 config file for API keys, channel credentials
-- Environment variable support
+### 1.4 Agent Loop
+- Implement core agent loop: receive → LLM call → tool execution → respond
+- Use Vercel AI SDK for LLM abstraction (generateText)
+- While loop with max iterations safety limit
+
+### 1.5 HTTP Endpoint
+- Hono server on port 4000
+- `GET /health` - Health check
+- `POST /chat` - Send message, get response
+- Test with curl before adding channels
 
 ---
 
@@ -45,24 +44,37 @@ Enable the agent to modify its own codebase through controlled PRs.
 
 **Goal:** Agent can propose code changes via GitHub PRs.
 
-### 2.1 GitHub Integration Tools
+### 2.1 First Channel (Telegram)
+- Telegram bot adapter using grammyjs
+- Basic message receive/send
+- Session key derivation (channel + user)
+
+### 2.2 Coding Tools
+- `read` - Read file contents
+- `edit` - Edit files (search/replace)
+- `write` - Create new files
+- `bash` - Execute shell commands
+- `glob` - Find files by pattern
+- `grep` - Search file contents
+
+### 2.3 GitHub Integration Tools
 - `github_clone` - Clone repo to isolated workspace
 - `github_branch` - Create feature branch
 - `github_commit` - Commit changes
 - `github_pr` - Open pull request
 - `github_pr_status` - Check CI/review status
 
-### 2.2 Coding Sub-Agent
+### 2.4 Coding Sub-Agent
 - Spawn isolated sub-agent for coding tasks
 - Workspace isolation (cloned repo, not live)
 - PR-only boundary (no direct merge)
 
-### 2.3 OpenCode Skills
+### 2.5 OpenCode Skills
 - `.opencode/skills/` directory structure
 - Skill loading and registration
 - Basic skills: code review, refactor suggestions
 
-### 2.4 Self-Repo Detection
+### 2.6 Self-Repo Detection
 - Detect when operating on FERN_SELF_REPO
 - Enforce PR requirement for self-modifications
 - Block dangerous operations (merge, deploy)
@@ -239,14 +251,16 @@ Polish and production-readiness.
 ## Progress Checklist
 
 ### Phase 1: MVP Core
-- [ ] Agent loop implementation
-- [ ] Vercel AI SDK integration
-- [ ] Telegram adapter (grammyjs)
-- [ ] JSONL session storage
-- [ ] Basic tools (read, edit, write, bash, glob, grep)
-- [ ] Configuration system
+- [x] Configuration system (JSON5 + env vars)
+- [x] Session storage (JSONL)
+- [x] Toy tools (echo, time)
+- [x] Agent loop implementation
+- [x] Vercel AI SDK integration
+- [x] HTTP endpoint (Hono server)
 
 ### Phase 2: Self-Improvement
+- [ ] Telegram adapter (grammyjs)
+- [ ] Coding tools (read, edit, write, bash, glob, grep)
 - [ ] GitHub integration tools
 - [ ] Coding sub-agent
 - [ ] Workspace isolation
@@ -300,9 +314,17 @@ Polish and production-readiness.
 Start with Phase 1. Each phase builds on the previous.
 
 ```bash
-# After Phase 1 is complete, you can:
-pnpm run dev          # Start the agent
-# Send a message via Telegram to test
+# Build the project
+pnpm run build
+
+# Start the server (requires .env with OPENAI_API_KEY)
+pnpm run start
+
+# Test with curl
+curl http://localhost:4000/health
+curl -X POST http://localhost:4000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What time is it?"}'
 ```
 
 The self-improvement loop (Phase 2) enables the agent to help implement subsequent phases.

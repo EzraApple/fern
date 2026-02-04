@@ -1,1 +1,1 @@
-export { loadConfig, getOpenAIApiKey, type Config } from "./config.js";
+export { loadConfig, getOpenAIApiKey } from "./config.js";

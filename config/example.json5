@@ -28,9 +28,10 @@
       channelPrompt: "Tone: casual, concise. Supports markdown."
     },
     whatsapp: {
-      enabled: false,
-      // Uses Baileys library
-      sessionPath: "./sessions/whatsapp",
+      enabled: true,
+      // Credentials in .env: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
+      // Uses Twilio WhatsApp API (sandbox for dev, dedicated number for prod)
+      webhookPath: "/webhooks/whatsapp",
       channelPrompt: "Tone: friendly, plain text only. No markdown."
     },
     webchat: {

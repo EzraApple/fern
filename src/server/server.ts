@@ -1,14 +1,20 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
+import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
 import { runAgentLoop } from "../core/index.js";
+import { createWhatsAppWebhookRoutes } from "./webhooks.js";
 
 const ChatInputSchema = z.object({
   sessionId: z.string().optional(),
   message: z.string().min(1, "Message cannot be empty"),
 });
 
-export function createServer() {
+export interface ServerOptions {
+  whatsappAdapter?: WhatsAppAdapter;
+}
+
+export function createServer(options?: ServerOptions) {
   const app = new Hono();
 
   // Enable CORS for all routes
@@ -51,6 +57,12 @@ export function createServer() {
       return c.json({ error: errorMessage }, 500);
     }
   });
+
+  // Mount WhatsApp webhook if adapter is available
+  if (options?.whatsappAdapter) {
+    const whatsappRoutes = createWhatsAppWebhookRoutes(options.whatsappAdapter);
+    app.route("/webhooks/whatsapp", whatsappRoutes);
+  }
 
   // 404 handler
   app.notFound((c) => {

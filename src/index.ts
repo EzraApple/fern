@@ -5,14 +5,29 @@
  */
 
 import { serve } from "@hono/node-server";
-import { loadConfig } from "./config/index.js";
+import { WhatsAppAdapter } from "./channels/index.js";
+import { getTwilioCredentials, loadConfig } from "./config/index.js";
+import { loadBasePrompt } from "./core/index.js";
 import { createServer } from "./server/index.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 async function main() {
   const config = loadConfig();
-  const app = createServer();
+
+  // Pre-load and cache the system prompt
+  loadBasePrompt();
+
+  // Initialize channel adapters
+  let whatsappAdapter: WhatsAppAdapter | undefined;
+
+  const twilioCreds = getTwilioCredentials();
+  if (twilioCreds) {
+    whatsappAdapter = new WhatsAppAdapter(twilioCreds);
+    await whatsappAdapter.init();
+  }
+
+  const app = createServer({ whatsappAdapter });
 
   console.info(`
 ╔═══════════════════════════════════════╗
@@ -24,6 +39,9 @@ async function main() {
   console.info(`Starting server on ${config.server.host}:${config.server.port}`);
   console.info(`Using model: ${config.model.provider}/${config.model.model}`);
   console.info(`Session storage: ${config.storage.path}`);
+  if (whatsappAdapter) {
+    console.info("WhatsApp: enabled (Twilio)");
+  }
   console.info("");
 
   serve(
@@ -36,8 +54,11 @@ async function main() {
       console.info(`✓ Server running at http://${info.address}:${info.port}`);
       console.info("");
       console.info("Endpoints:");
-      console.info("  GET  /health - Health check");
-      console.info("  POST /chat   - Send a message");
+      console.info("  GET  /health            - Health check");
+      console.info("  POST /chat              - Send a message");
+      if (whatsappAdapter) {
+        console.info("  POST /webhooks/whatsapp - Twilio WhatsApp webhook");
+      }
       console.info("");
       console.info("Test with:");
       console.info(

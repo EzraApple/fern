@@ -101,3 +101,25 @@ export function getOpenAIApiKey(): string {
   }
   return key;
 }
+
+export interface TwilioCredentials {
+  accountSid: string;
+  authToken: string;
+  fromNumber: string;
+}
+
+/** Returns Twilio credentials if all env vars are set, otherwise null */
+export function getTwilioCredentials(): TwilioCredentials | null {
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const accountSid = process.env["TWILIO_ACCOUNT_SID"];
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const authToken = process.env["TWILIO_AUTH_TOKEN"];
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const fromNumber = process.env["TWILIO_WHATSAPP_FROM"];
+
+  if (!accountSid || !authToken || !fromNumber) {
+    return null;
+  }
+
+  return { accountSid, authToken, fromNumber };
+}

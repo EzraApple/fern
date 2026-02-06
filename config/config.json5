@@ -16,5 +16,14 @@
   server: {
     port: 4000,
     host: "127.0.0.1"
-  }
+  },
+
+  // Channel adapters
+  // WhatsApp is auto-enabled when TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,
+  // and TWILIO_WHATSAPP_FROM are set in .env
+  // channels: {
+  //   whatsapp: {
+  //     webhookPath: "/webhooks/whatsapp"
+  //   }
+  // }
 }

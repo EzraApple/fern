@@ -3,17 +3,10 @@ import { type CoreMessage, generateText } from "ai";
 import { getOpenAIApiKey, loadConfig } from "../config/index.js";
 import { Session } from "../storage/index.js";
 import { executeTool, getAITools } from "../tools/index.js";
+import { buildSystemPrompt } from "./prompt.js";
 import type { AgentInput, AgentResult, ToolCallRecord } from "./types.js";
 
 const MAX_ITERATIONS = 10;
-
-const SYSTEM_PROMPT = `You are Fern, a helpful AI assistant. You have access to tools that you can use to help answer questions.
-
-Available tools:
-- echo: Echoes back text (useful for testing or repeating information)
-- time: Gets the current date and time
-
-Use tools when appropriate to help answer questions. Be concise and helpful.`;
 
 export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
   const config = loadConfig();
@@ -29,8 +22,9 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
   // Append user message
   await session.appendUserMessage(input.message);
 
-  // Get tools
+  // Get tools and build system prompt
   const tools = getAITools();
+  const systemPrompt = buildSystemPrompt(tools, input.channelName);
 
   // Track tool calls for response
   const toolCallsHistory: ToolCallRecord[] = [];
@@ -85,7 +79,7 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
     try {
       const result = await generateText({
         model,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         messages,
         tools,
         maxSteps: 5, // Allow multiple tool calls per iteration

@@ -443,4 +443,4 @@ User sends "help me optimize the memory search function" via Telegram
 - **Vector Store**: LanceDB
 - **Schema Validation**: Zod
 - **HTTP Server**: Hono (for webhooks, API)
-- **Channels**: grammyjs (Telegram), Baileys (WhatsApp), custom WebSocket (WebChat)
+- **Channels**: Twilio (WhatsApp), grammyjs (Telegram, planned), custom WebSocket (WebChat, planned)

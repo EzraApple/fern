@@ -44,10 +44,11 @@ Enable the agent to modify its own codebase through controlled PRs.
 
 **Goal:** Agent can propose code changes via GitHub PRs.
 
-### 2.1 First Channel (Telegram)
-- Telegram bot adapter using grammyjs
-- Basic message receive/send
-- Session key derivation (channel + user)
+### 2.1 First Channel (WhatsApp via Twilio)
+- WhatsApp adapter using Twilio API (webhook-based)
+- Plain text output formatting (markdown stripping, 1600-char chunking)
+- Session key derivation from phone number (`whatsapp_{phone}`)
+- Dynamic system prompt with channel-specific context injection
 
 ### 2.2 Coding Tools
 - `read` - Read file contents
@@ -194,9 +195,9 @@ Expand beyond Telegram to other platforms.
 - Channel-agnostic core
 
 ### 7.2 WhatsApp Adapter
-- Baileys library integration
+- ~~Baileys library integration~~ Implemented in Phase 2.1 using Twilio
 - Plain text formatting (no markdown)
-- Message chunking for length limits
+- Message chunking for length limits (1600 chars per Twilio)
 
 ### 7.3 WebChat Adapter
 - WebSocket server
@@ -259,7 +260,7 @@ Polish and production-readiness.
 - [x] HTTP endpoint (Hono server)
 
 ### Phase 2: Self-Improvement
-- [ ] Telegram adapter (grammyjs)
+- [x] WhatsApp adapter (Twilio) + dynamic system prompt
 - [ ] Coding tools (read, edit, write, bash, glob, grep)
 - [ ] GitHub integration tools
 - [ ] Coding sub-agent
@@ -294,10 +295,10 @@ Polish and production-readiness.
 - [ ] Cache invalidation
 
 ### Phase 7: Multi-Channel
-- [ ] Channel abstraction
-- [ ] WhatsApp adapter
+- [x] Channel abstraction (ChannelAdapter interface + format utilities)
+- [x] WhatsApp adapter (implemented in Phase 2.1 via Twilio)
 - [ ] WebChat adapter
-- [ ] Channel prompts
+- [x] Channel prompts (implemented in Phase 2.1 via dynamic system prompt)
 - [ ] Channel queue
 
 ### Phase 8: Advanced

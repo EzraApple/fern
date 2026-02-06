@@ -1,6 +1,7 @@
 export interface AgentInput {
   sessionId: string | undefined;
   message: string;
+  channelName?: string;
 }
 
 export interface ToolCallRecord {

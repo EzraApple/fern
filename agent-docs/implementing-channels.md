@@ -60,7 +60,7 @@ Different channels have different capabilities:
 | Channel | Markdown | Streaming | Max Length | Attachments |
 |---------|----------|-----------|------------|-------------|
 | Telegram | Yes | No | 4096 | Yes |
-| WhatsApp | No | No | 65536 | Yes |
+| WhatsApp (Twilio) | No | No | 1600 (Twilio limit) | Yes |
 | WebChat | Yes | Yes | Unlimited | Yes |
 | Webhook | N/A | No | N/A | Yes |
 
@@ -219,6 +219,51 @@ class WebChatAdapter implements ChannelAdapter {
   }
 }
 ```
+
+## Example: WhatsApp Adapter (Twilio, Webhook-Based)
+
+This is the first implemented channel. Key differences from polling-based adapters (like Telegram):
+
+- **Webhook-based**: Twilio POSTs to `/webhooks/whatsapp` when a message arrives
+- **Stateless**: No persistent connection — each request is independent
+- **REST API for replies**: We send responses via Twilio REST API, not in the webhook response
+- **Empty TwiML response**: Return `<Response></Response>` to acknowledge the webhook without sending a duplicate
+
+```typescript
+// src/channels/whatsapp/adapter.ts
+class WhatsAppAdapter implements ChannelAdapter {
+  name = "whatsapp";
+
+  async send(message: OutboundMessage): Promise<void> {
+    const chunks = formatForChannel(message.content, this.getCapabilities());
+    for (const chunk of chunks) {
+      await this.gateway.sendMessage({
+        to: `whatsapp:${message.channelUserId}`,
+        from: this.fromNumber,
+        body: chunk,
+      });
+    }
+  }
+
+  getCapabilities(): ChannelCapabilities {
+    return {
+      markdown: false,
+      streaming: false,
+      maxMessageLength: 1600, // Twilio's per-message limit
+      supportsAttachments: true,
+      supportsReply: false,
+    };
+  }
+
+  deriveSessionId(phoneNumber: string): string {
+    return `whatsapp_${phoneNumber.replace(/[^+\d]/g, "")}`;
+  }
+}
+```
+
+**Twilio webhook signature validation**: Use `twilio.validateRequest()` to verify incoming webhooks are genuinely from Twilio. Currently optional but recommended for production.
+
+**Note on message limits**: WhatsApp natively supports 65536 characters, but Twilio's API enforces a 1600-character per-message limit. The `formatForChannel()` utility auto-chunks longer messages.
 
 ## Registering Channels
 

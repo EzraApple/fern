@@ -181,6 +181,11 @@ Optimize tool execution for speed and efficiency.
 - Per-tool TTL configuration
 - Write tools invalidate related read caches
 
+### 6.4 Background Tasks & Parallel Subagents
+- Task orchestrator for spawning multiple subagents concurrently
+- Background execution with notification-based completion (non-blocking)
+- Main agent remains responsive while workers execute in parallel
+
 ---
 
 ## Phase 7: Multi-Channel Support
@@ -253,20 +258,23 @@ Polish and production-readiness.
 
 ### Phase 1: MVP Core
 - [x] Configuration system (JSON5 + env vars)
-- [x] Session storage (JSONL)
+- [x] Session storage (OpenCode file-based)
 - [x] Toy tools (echo, time)
 - [x] Agent loop implementation
-- [x] Vercel AI SDK integration
+- [x] OpenCode SDK integration (migrated from Vercel AI SDK)
 - [x] HTTP endpoint (Hono server)
+- [x] OpenCode embedded server with event streaming
 
 ### Phase 2: Self-Improvement
 - [x] WhatsApp adapter (Twilio) + dynamic system prompt
-- [ ] Coding tools (read, edit, write, bash, glob, grep)
-- [ ] GitHub integration tools
-- [ ] Coding sub-agent
-- [ ] Workspace isolation
-- [ ] OpenCode skills directory
-- [ ] Self-repo safety rules
+- [x] Enable coding tools (read, edit, write, bash, glob, grep) - **Enabled in OpenCode config**
+- [x] GitHub integration tools (github_clone, github_branch, github_commit, github_push, github_pr, github_pr_status)
+- [x] Workspace isolation (temp directory cloning with auto-cleanup)
+- [x] Self-repo safety rules (documented in system prompt)
+- [ ] Coding sub-agent (future: could spawn isolated OpenCode sessions for complex tasks)
+- [ ] OpenCode skills directory (future: .opencode/skills/ for self-improvement patterns)
+
+**Note**: GitHub App authentication configured with Octokit. PRs created by "Fern" GitHub App. All code modifications happen in isolated workspaces, never touching the live codebase.
 
 ### Phase 3: Memory System
 - [ ] Compaction agent
@@ -293,6 +301,8 @@ Polish and production-readiness.
 - [ ] Parallel read execution
 - [ ] Tool result caching
 - [ ] Cache invalidation
+- [ ] Background task execution
+- [ ] Parallel subagent spawning
 
 ### Phase 7: Multi-Channel
 - [x] Channel abstraction (ChannelAdapter interface + format utilities)

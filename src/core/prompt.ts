@@ -11,11 +11,9 @@ export function loadBasePrompt(): string {
   return cachedBasePrompt;
 }
 
-/** Generate tool descriptions from the AI SDK tool registry */
-export function generateToolDescriptions(tools: Record<string, { description?: string }>): string {
-  return Object.entries(tools)
-    .map(([name, t]) => `- ${name}: ${t.description ?? "No description"}`)
-    .join("\n");
+/** Generate tool descriptions from tool names (OpenCode auto-discovery) */
+export function generateToolDescriptions(toolNames: string[]): string {
+  return toolNames.map((name) => `- ${name}`).join("\n");
 }
 
 const CHANNEL_PROMPTS: Record<string, string> = {
@@ -38,12 +36,9 @@ export function getChannelPrompt(channelName: string): string {
 }
 
 /** Assemble the full system prompt with tools and channel context */
-export function buildSystemPrompt(
-  tools: Record<string, { description?: string }>,
-  channelName?: string
-): string {
+export function buildSystemPrompt(toolNames: string[], channelName?: string): string {
   const base = loadBasePrompt();
-  const toolDescriptions = generateToolDescriptions(tools);
+  const toolDescriptions = generateToolDescriptions(toolNames);
   const channelContext = channelName ? getChannelPrompt(channelName) : "";
 
   return base.replace("{{TOOLS}}", toolDescriptions).replace("{{CHANNEL_CONTEXT}}", channelContext);

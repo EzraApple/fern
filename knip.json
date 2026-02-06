@@ -1,6 +1,11 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
-  "project": ["src/**/*.ts"],
-  "ignore": ["**/*.test.ts", "**/*.spec.ts"],
-  "ignoreDependencies": []
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "include": ["files", "duplicates"],
+  "ignore": [
+    "src/.opencode/tool/**",
+    "src/core/github-service.ts",
+    "src/core/workspace-git.ts",
+    "src/core/workspace.ts"
+  ],
+  "ignoreDependencies": ["@octokit/app", "@octokit/rest", "@opencode-ai/plugin", "opencode-ai"]
 }

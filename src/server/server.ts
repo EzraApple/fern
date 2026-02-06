@@ -44,9 +44,13 @@ export function createServer(options?: ServerOptions) {
 
       const { sessionId, message } = parseResult.data;
 
+      // Generate session ID if not provided (use timestamp + random)
+      const effectiveSessionId =
+        sessionId || `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
       // Run agent loop
       const result = await runAgentLoop({
-        sessionId,
+        sessionId: effectiveSessionId,
         message,
       });
 

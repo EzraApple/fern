@@ -1,18 +1,25 @@
+#
+# Phase 2 Self-Improvement Test
+#
+# 🌿
 # Fern
 
 A self-improving headless AI agent that operates across multiple messaging channels (Telegram, WhatsApp, etc.) with persistent memory, parallel tool execution, and the ability to improve its own codebase through controlled PR submissions.
 
 ## Current Functionality
 
-Phase 1 MVP + WhatsApp channel:
+Phase 1 MVP + Phase 2 Self-Improvement:
 
-- **Agent Loop**: Core message → LLM → tool execution → response cycle
-- **Session Storage**: JSONL-based conversation persistence with metadata
-- **Toy Tools**: `echo` and `time` tools for testing
+- **Agent Loop**: OpenCode SDK-powered message → LLM → tool execution → response cycle
+- **Session Storage**: OpenCode file-based storage in `~/.local/share/opencode/storage/`
+- **Tools**: `echo`, `time` + 6 GitHub tools + built-in coding tools (read, edit, write, bash, glob, grep)
 - **HTTP API**: Hono server with `/health`, `/chat`, and `/webhooks/whatsapp` endpoints
 - **WhatsApp Channel**: Twilio-based WhatsApp integration with webhook
-- **Dynamic System Prompt**: Personality and tool descriptions loaded from `config/SYSTEM_PROMPT.md`
-- **Configuration**: JSON5 config + .env support
+- **Dynamic System Prompt**: Personality, tool descriptions, and self-improvement workflow from `config/SYSTEM_PROMPT.md`
+- **Self-Improvement Loop**: Agent can clone repos, modify code in isolated workspaces, run tests, and create PRs via GitHub App
+- **Workspace Isolation**: All code modifications in temp directories (`/tmp/fern-workspaces/`) with auto-cleanup
+- **GitHub Integration**: Authenticated via GitHub App, PRs created as "Fern" bot
+- **Configuration**: JSON5 config + .env support for API keys and GitHub App credentials
 
 ### Quick Start
 
@@ -25,11 +32,15 @@ pnpm install
 # Set up environment
 # Required: OpenAI API key
 # Optional: Twilio credentials for WhatsApp
+# Optional: GitHub App credentials for self-improvement
 cat > .env << 'EOF'
 OPENAI_API_KEY=sk-...
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+GITHUB_APP_ID=123456
+GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
+GITHUB_APP_INSTALLATION_ID=12345678
 EOF
 
 # Build and run
@@ -68,17 +79,14 @@ curl -X POST http://localhost:4000/chat \
 
 ---
 
-## Planned Features
+## Planned Features (Phase 3+)
 
-- **Multi-Channel Support**: Telegram, WebChat, webhooks (WhatsApp done)
-- **Coding Tools**: read, edit, write, bash, glob, grep
-- **Memory System**: Persistent agent-written knowledge with vector search
-- **Parallel Tool Execution**: Read operations in parallel, writes sequential
-- **Tool Result Caching**: LRU cache with write-invalidation
-- **Self-Improvement Loop**: Agent modifies its own code via PRs
-- **Observability**: JSONL logs with UI viewer
-- **Unified Permissions**: Profile + channel + path-level permission layers
-- **Scheduling**: Built-in cron for scheduled tasks and follow-ups
+- **Memory System**: Persistent agent-written knowledge with vector search (Phase 3)
+- **Observability**: Tool execution logging, session metadata, cost tracking (Phase 4)
+- **Scheduling**: Cron jobs, deferred tasks, reminders (Phase 5)
+- **Tool Enhancements**: Parallel read execution, result caching, background task execution, parallel subagent spawning (Phase 6)
+- **Multi-Channel Support**: WebChat, additional messaging platforms (Phase 7)
+- **Advanced Features**: Provider failover, cost tracking, permission system (Phase 8)
 
 ## Project Structure
 

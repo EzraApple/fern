@@ -7,16 +7,18 @@ A self-improving headless AI agent with multi-channel support (Telegram, WhatsAp
 **Phase 1 MVP is complete.** See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for full roadmap.
 
 ### What's Working
-- Agent loop: message → LLM (gpt-4o-mini) → tool execution → response
-- Session storage: JSONL in `~/.fern/sessions/{sessionId}/`
+- Agent loop: message → OpenCode SDK → tool execution → response
+- Session storage: OpenCode file-based storage in `~/.local/share/opencode/storage/`
 - HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`)
-- Toy tools: `echo`, `time`
+- Tools: `echo`, `time` + 6 GitHub tools + built-in coding tools (read, edit, write, bash, glob, grep)
 - WhatsApp channel via Twilio (webhook-based)
-- Dynamic system prompt from `config/SYSTEM_PROMPT.md` with tool injection and channel-specific context
+- Dynamic system prompt from `config/SYSTEM_PROMPT.md` with self-improvement workflow
+- OpenCode embedded server (port 4096-4300)
+- **Phase 2: Self-improvement loop** - Agent can clone repos, modify code, run tests, create PRs via GitHub App
 
-### Next Up (Phase 2 continued)
-- Coding tools (read, edit, write, bash, glob, grep)
-- GitHub integration for self-improvement
+### Next Up (Phase 3)
+- Memory system (persistent memory, vector search)
+- Observability (tool execution logging, session metadata)
 
 ## Quick Commands
 
@@ -32,15 +34,20 @@ pnpm run tsc          # Type check
 
 | File | Purpose |
 |------|---------|
-| `src/index.ts` | Entry point, starts Hono server |
-| `src/core/agent.ts` | Main agent loop with LLM calls |
-| `src/storage/session.ts` | JSONL session persistence |
-| `src/tools/registry.ts` | Tool definitions for AI SDK |
+| `src/index.ts` | Entry point, starts Hono server and OpenCode, workspace cleanup |
+| `src/core/agent.ts` | Main agent loop using OpenCode SDK |
+| `src/core/opencode-service.ts` | OpenCode server/client management, event streaming |
+| `src/core/github-service.ts` | GitHub App authentication, PR creation, status checking (Octokit) |
+| `src/core/workspace.ts` | Workspace lifecycle (create, cleanup, stale detection) |
+| `src/core/workspace-git.ts` | Git operations in workspace (branch, commit, push) |
+| `src/types/workspace.ts` | Workspace and git commit type definitions |
+| `src/.opencode/tool/` | Tool definitions (OpenCode auto-discovery) |
+| `src/.opencode/tool/github-*.ts` | 6 GitHub tools for self-improvement workflow |
 | `src/server/server.ts` | HTTP routes |
 | `src/server/webhooks.ts` | Twilio WhatsApp webhook route |
-| `src/config/config.ts` | Config loading |
+| `src/config/config.ts` | Config loading (includes GitHub App credentials) |
 | `src/core/prompt.ts` | System prompt loading, tool injection, channel prompts |
-| `config/SYSTEM_PROMPT.md` | Agent personality and instructions template |
+| `config/SYSTEM_PROMPT.md` | Agent personality, self-improvement workflow, safety rules |
 | `src/channels/whatsapp/adapter.ts` | WhatsApp adapter (Twilio) |
 | `src/channels/whatsapp/twilio-gateway.ts` | Twilio API wrapper |
 | `src/channels/format.ts` | Markdown stripping, message chunking |
@@ -49,24 +56,35 @@ pnpm run tsc          # Type check
 ## Patterns Established
 
 ### Tool Definition
-Tools are defined inline in `registry.ts` using Vercel AI SDK's `tool()`:
+Tools are defined in `src/.opencode/tool/` using OpenCode plugin format:
 ```typescript
-tool({
+import { tool } from "@opencode-ai/plugin";
+
+export const echo = tool({
   description: "...",
-  parameters: z.object({ ... }),
-  execute: async (args) => result,
-})
+  args: {
+    text: tool.schema.string().describe("..."),
+  },
+  async execute(args) {
+    return args.text;
+  },
+});
 ```
 
+Tools are auto-discovered by OpenCode at startup (no registry needed).
+
 ### Session Storage
-- Events appended to `events.jsonl` (user_message, assistant_message, tool_call, tool_result)
-- Metadata in `metadata.json`
-- Session ID is ULID
+- OpenCode manages sessions in `~/.local/share/opencode/storage/`
+- File-based: `project/`, `session/`, `message/`, `part/`, `session_diff/`
+- Tracks file diffs, message parts, and git integration
+- Thread-based session continuity (maps channel session → OpenCode threadId)
+- 1-hour TTL for session reuse
 
 ### Agent Loop
-- Uses `generateText` with `maxSteps: 5` for automatic tool execution
-- While loop with max 10 iterations as safety
-- Messages converted to CoreMessage format for AI SDK
+- OpenCode SDK handles everything: LLM calls, tool execution, conversation history
+- Event streaming for real-time progress (tool_start, tool_complete, session_idle)
+- Embedded server on port 4096-4300 (retry logic on conflict)
+- Thread-based session mapping for conversation continuity across messages
 
 ### System Prompt
 - Base prompt in `config/SYSTEM_PROMPT.md` with `{{TOOLS}}` and `{{CHANNEL_CONTEXT}}` placeholders
@@ -81,6 +99,21 @@ tool({
 - Output formatted per channel capabilities (markdown stripping, chunking)
 - Session derived from phone number: `whatsapp_{phone}`
 
+### Workspace Isolation (Phase 2)
+- All code modifications happen in isolated temp workspaces, never touching live codebase
+- Workspace location: `os.tmpdir()/fern-workspaces/{ulid}/`
+- Lifecycle: create → branch → modify → test → commit → push → PR → cleanup
+- Git operations confined to workspace via `cwd` option
+- Auto-cleanup on process exit and stale workspace detection on startup
+- Self-repo URL documented in system prompt (https://github.com/EzraApple/fern)
+
+### GitHub Integration (Phase 2)
+- GitHub App authentication via Octokit (`@octokit/app`)
+- PRs created by "Fern" GitHub App (not user account)
+- 6 tools: `github_clone`, `github_branch`, `github_commit`, `github_push`, `github_pr`, `github_pr_status`
+- Branch protection enforced (PR-only merges to main)
+- All operations validated and errors surfaced to agent for handling
+
 ## Reference Projects
 
 These were used for inspiration (in `/Users/ezraapple/Projects/`):
@@ -92,11 +125,11 @@ These were used for inspiration (in `/Users/ezraapple/Projects/`):
 See [ARCHITECTURE.md](ARCHITECTURE.md) for full system design with diagrams.
 
 **Key layers:**
-- **Core Runtime**: Agent loop, session manager, provider manager
-- **Tool Executor**: Parallel read execution, sequential writes, result caching
-- **Memory System**: Session memory (JSONL) + persistent memory (markdown + vector)
-- **Channel Adapters**: Telegram, WhatsApp, WebChat, webhooks
-- **Self-Improvement**: PR-only code modifications with human approval
+- **Core Runtime**: OpenCode SDK manages agent loop, sessions, and tool execution
+- **OpenCode Service**: Embedded server, client management, event streaming
+- **Tools**: Auto-discovered from `.opencode/tool/` directory
+- **Channel Adapters**: WhatsApp (Twilio), WebChat (planned)
+- **Self-Improvement**: PR-only code modifications with human approval (Phase 2)
 
 ## Agent Docs
 

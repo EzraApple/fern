@@ -1,5 +1,5 @@
 export interface AgentInput {
-  sessionId: string | undefined;
+  sessionId: string;
   message: string;
   channelName?: string;
 }

@@ -15,6 +15,15 @@ export interface Config {
     port: number;
     host: string;
   };
+  github?: {
+    appId?: string;
+    privateKey?: string;
+    installationId?: string;
+  };
+  workspaces?: {
+    basePath?: string;
+    maxAgeMs?: number;
+  };
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -88,6 +97,30 @@ export function loadConfig(): Config {
     // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
     config.storage.path = expandPath(process.env["FERN_STORAGE_PATH"]);
   }
+
+  // Add GitHub config from environment
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const githubAppId = process.env["GITHUB_APP_ID"];
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const githubPrivateKey = process.env["GITHUB_APP_PRIVATE_KEY"];
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const githubInstallationId = process.env["GITHUB_APP_INSTALLATION_ID"];
+
+  if (githubAppId && githubPrivateKey && githubInstallationId) {
+    config.github = {
+      appId: githubAppId,
+      privateKey: githubPrivateKey,
+      installationId: githubInstallationId,
+    };
+  }
+
+  // Add workspace config
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const workspaceBasePath = process.env["WORKSPACE_BASE_PATH"];
+  config.workspaces = {
+    basePath: workspaceBasePath,
+    maxAgeMs: 24 * 60 * 60 * 1000, // 24 hours
+  };
 
   cachedConfig = config;
   return config;

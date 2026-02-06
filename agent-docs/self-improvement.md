@@ -3,11 +3,14 @@ name: Self-Improvement
 description: |
   How Fern modifies its own codebase through controlled PR submissions.
   Reference when: implementing self-modification features, safety boundaries, GitHub integration, coding sub-agent.
+status: Phase 2 Complete - Workspace isolation, GitHub integration, and 6 GitHub tools implemented.
 ---
 
 # Self-Improvement
 
 Fern can modify its own codebase, but only through controlled PR submissions that require human approval.
+
+**Status: Phase 2 implemented** - All workspace isolation, GitHub integration, and tools are functional.
 
 ## Core Safety Principle
 
@@ -67,38 +70,71 @@ interface CodingResult {
 
 ### Workspace Isolation
 
+**Implementation**: See `src/core/workspace.ts`
+
 ```typescript
-async function createCodingWorkspace(repo: string): Promise<string> {
-  const workspaceDir = path.join(WORKSPACES_DIR, generateId());
+// Actual implementation in src/core/workspace.ts
+export async function createWorkspace(repoUrl: string): Promise<WorkspaceInfo> {
+  const workspaceId = ulid(); // Unique ID
+  const baseDir = getWorkspaceBaseDir(); // os.tmpdir()/fern-workspaces
+  const workspacePath = path.join(baseDir, workspaceId);
 
-  // Clone repo to isolated directory
-  await exec(`git clone ${repo} ${workspaceDir}`);
+  // Create directory and clone
+  fs.mkdirSync(workspacePath, { recursive: true });
+  await execPromise(`git clone "${repoUrl}" "${workspacePath}"`);
 
-  // Create feature branch
-  await exec(`git checkout -b fern/${generateBranchName()}`, {
-    cwd: workspaceDir,
+  // Get current branch
+  const branchResult = await execPromise("git branch --show-current", {
+    cwd: workspacePath,
   });
 
-  return workspaceDir;
+  const workspace: WorkspaceInfo = {
+    id: workspaceId,
+    path: workspacePath,
+    repoUrl,
+    branch: branchResult.stdout.trim(),
+    createdAt: Date.now(),
+  };
+
+  // Register for cleanup
+  workspaceRegistry.set(workspaceId, workspace);
+  return workspace;
 }
 ```
 
+**Key features:**
+- Workspace location: `os.tmpdir()/fern-workspaces/{ulid}/`
+- Auto-cleanup on process exit (registered in `src/index.ts`)
+- Stale workspace detection on startup (24-hour TTL)
+- Registry tracking for all active workspaces
+
 ## GitHub Integration Tools
+
+**Implementation**: See `src/.opencode/tool/github-*.ts`
+
+All 6 GitHub tools are implemented using OpenCode's tool format and auto-discovered at startup.
 
 ### github_clone
 
+**File**: `src/.opencode/tool/github-clone.ts`
+
 ```typescript
-const githubClone = {
-  name: "github_clone",
-  description: "Clone a repository to a workspace",
-  parameters: z.object({
-    repo: z.string().describe("Repository URL or owner/repo"),
-  }),
-  execute: async (args) => {
-    const workspace = await createCodingWorkspace(args.repo);
-    return { workspace };
+export const github_clone = tool({
+  description: "Clone a GitHub repository to an isolated workspace for safe modifications...",
+  args: {
+    repoUrl: tool.schema.string().describe("Repository URL..."),
   },
-};
+  async execute(args) {
+    const workspace = await createWorkspace(args.repoUrl);
+    return {
+      workspaceId: workspace.id,
+      path: workspace.path,
+      branch: workspace.branch,
+      message: `Cloned ${args.repoUrl} to workspace ${workspace.id}`,
+      success: true,
+    };
+  },
+});
 ```
 
 ### github_branch
@@ -187,29 +223,37 @@ const githubPrStatus = {
 
 ## Self-Repo Detection
 
-Special rules when operating on the agent's own repository:
+Special rules when operating on the agent's own repository.
 
-```typescript
-const SELF_REPO = process.env.SELF_REPO; // e.g., "EzraApple/fern"
+**Implementation**: Documented in `config/SYSTEM_PROMPT.md`
 
-function isSelfRepo(repo: string): boolean {
-  return repo.includes(SELF_REPO);
-}
+The self-repo URL (`https://github.com/EzraApple/fern`) is embedded in the system prompt rather than .env, since the agent will eventually manage multiple repos.
 
-// Permission rules for self-repo
-const selfRepoPermissions = {
-  // Allowed (on branch only)
-  read: "allow",
-  edit: "allow",
-  write: "allow",
-  bash: "allow", // for tests
-  github_pr: "allow",
+```markdown
+## Self-Improvement Workflow
 
-  // ALWAYS DENIED
-  github_merge: "deny",
-  deploy: "deny",
-};
+When the user asks you to modify your own codebase (https://github.com/EzraApple/fern):
+
+1. **Clone**: Use `github_clone` to create an isolated workspace
+2. **Branch**: Use `github_branch` to create a feature branch (e.g., `fern/add-feature-name`)
+3. **Modify**: Use `read`, `write`, `edit` tools to make changes (all confined to workspace)
+4. **Test**: Use `bash` to run tests in the workspace (e.g., `pnpm run lint && pnpm run tsc`)
+5. **Commit**: Use `github_commit` with a clear commit message
+6. **Push**: Use `github_push` to push the branch
+7. **PR**: Use `github_pr` to create a pull request with detailed description
+
+**CRITICAL SAFETY RULES:**
+- NEVER modify files outside the workspace
+- ALWAYS run tests before creating a PR
+- NEVER push directly to main branch (branch protection enforces this)
+- ALWAYS use PR workflow for self-modifications
+- Include clear description of what changed and why in PR body
+
+**Self-Repo Detection:**
+When working on https://github.com/EzraApple/fern, this is YOUR codebase. Be extra careful and thorough with testing.
 ```
+
+**Branch protection** is configured on GitHub (main branch requires PRs and CI checks), so direct pushes to main are blocked at the repository level.
 
 ## Improvement Triggers
 
@@ -266,49 +310,31 @@ schedule("0 0 * * 0", async () => {
 
 ## Improvement Workflow
 
-```typescript
-async function runImprovement(task: string): Promise<ImprovementResult> {
-  // 1. Create isolated workspace
-  const workspace = await createCodingWorkspace(SELF_REPO);
+The agent follows the workflow documented in the system prompt. Here's an example of the full cycle:
 
-  // 2. Spawn coding sub-agent
-  const result = await codingSubAgent.execute(task, { workspace });
+**Example: User requests a feature via WhatsApp**
 
-  // 3. Run tests
-  const testResult = await exec("npm test", { cwd: workspace });
-  if (!testResult.success) {
-    return { success: false, error: "Tests failed" };
-  }
-
-  // 4. Open PR
-  const pr = await githubPr.execute({
-    workspace,
-    title: `[Fern] ${task.slice(0, 50)}`,
-    body: `
-## Summary
-${task}
-
-## Changes
-${result.filesChanged.map(f => `- ${f}`).join("\n")}
-
-## Testing
-- [x] Tests pass locally
-
----
-*This PR was created by Fern self-improvement.*
-    `,
-  });
-
-  // 5. Record in memory
-  await memory_write({
-    type: "improvement",
-    content: `Created PR #${pr.prNumber}: ${task}`,
-    metadata: { prUrl: pr.prUrl },
-  });
-
-  return { success: true, prUrl: pr.prUrl };
-}
 ```
+User: "Add a tool that returns a random number between 1 and 100"
+
+Agent workflow:
+1. Uses github_clone to clone https://github.com/EzraApple/fern
+2. Uses github_branch to create branch "fern/add-random-number-tool"
+3. Uses write to create src/.opencode/tool/random-number.ts
+4. Uses bash to run: pnpm run lint && pnpm run tsc
+5. Uses github_commit with message "Add random number tool"
+6. Uses github_push to push the branch
+7. Uses github_pr to create PR with title "[Fern] Add random number tool"
+   and detailed description of what was added
+8. Returns PR URL to user: "Created PR #42: https://github.com/..."
+
+User reviews PR, approves, merges.
+Next time agent starts, it has the new tool available!
+```
+
+**Testing**: The agent is instructed in the system prompt to run `pnpm run lint && pnpm run tsc` before creating PRs. More comprehensive testing (unit tests, integration tests) will be added in future phases.
+
+**Memory integration** (Phase 3) will allow the agent to remember which PRs it created and track their outcomes for learning.
 
 ## Anti-Patterns
 

@@ -14,7 +14,8 @@
     "format": "biome format --write .",
     "tsc": "tsc --noEmit",
     "knip": "knip",
-    "ci": "pnpm run lint && pnpm run tsc"
+    "ci": "pnpm run lint && pnpm run tsc",
+    "memory:wipe": "rm -rf ~/.fern/memory && echo 'Memory wiped (DB + archives).'"
   },
   "keywords": ["ai", "agent", "llm", "telegram", "whatsapp", "self-improving"],
   "author": "Ezra Apple",
@@ -29,15 +30,20 @@
     "@octokit/rest": "^22.0.1",
     "@opencode-ai/plugin": "^1.1.53",
     "@opencode-ai/sdk": "^1.1.53",
+    "better-sqlite3": "^12.6.2",
     "hono": "^4.6.0",
     "json5": "^2.2.0",
+    "openai": "^6.18.0",
     "opencode-ai": "^1.1.53",
+    "p-queue": "^9.1.0",
+    "sqlite-vec": "0.1.7-alpha.2",
     "twilio": "^5.12.1",
-    "ulid": "^2.3.0",
+    "ulid": "^2.4.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "knip": "^5.0.0",
     "typescript": "^5.7.0"

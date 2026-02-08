@@ -10,6 +10,7 @@ import { getTwilioCredentials, loadConfig } from "./config/index.js";
 import { loadBasePrompt } from "./core/index.js";
 import * as opencodeService from "./core/opencode-service.js";
 import * as workspace from "./core/workspace.js";
+import { closeDb, initMemoryDb } from "./memory/index.js";
 import { createServer } from "./server/index.js";
 
 export const VERSION = "0.2.0";
@@ -28,6 +29,10 @@ async function main() {
   console.info("Initializing OpenCode server...");
   const opencode = await opencodeService.ensureOpenCode();
   console.info(`✓ OpenCode server running at ${opencode.url}`);
+
+  // Initialize memory database (SQLite + sqlite-vec + JSONL migration)
+  await initMemoryDb();
+  console.info("✓ Memory database initialized");
 
   // Initialize channel adapters
   let whatsappAdapter: WhatsAppAdapter | undefined;
@@ -57,6 +62,7 @@ async function main() {
   // Setup cleanup handlers
   const cleanup = async () => {
     console.info("\nShutting down...");
+    closeDb();
     workspace.cleanupAllWorkspaces();
     await opencodeService.cleanup();
     console.info("✓ Cleanup complete");

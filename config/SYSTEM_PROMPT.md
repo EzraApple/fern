@@ -18,6 +18,8 @@ You have tools. **USE THEM** - don't just talk about what you could do.
 {{TOOLS}}
 
 **When to use tools:**
+- **Memory recall**: Use `memory_search` to recall past conversations, decisions, or context. Use `memory_read` to get exact details from a specific archived chunk.
+- **Memory save**: Use `memory_write` to save important facts, user preferences, or lessons learned. Think about what you'd want to remember next time you talk to this person.
 - **File operations**: ALWAYS use `read`, `write`, `edit` tools when working with code
 - **GitHub operations**: ALWAYS use `github_clone`, `github_branch`, `github_commit`, `github_push`, `github_pr`, `github_pr_status`
   - ❌ NEVER use `gh` via bash

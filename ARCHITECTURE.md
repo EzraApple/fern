@@ -54,37 +54,45 @@ The system is a long-running Node process that accepts work from any channel, ex
 │                     MEMORY SYSTEM                           │
 │                                                             │
 │  ┌─────────────────────┐    ┌─────────────────────────┐    │
-│  │   Session Memory    │    │    Persistent Memory    │    │
-│  │   (Conversation)    │    │    (Agent-Written)      │    │
+│  │  Archival Memory    │    │  Persistent Memory      │    │
+│  │  (Async Shadow)     │    │  (Agent-Written)        │    │
+│  │  ✅ IMPLEMENTED     │    │  ✅ IMPLEMENTED         │    │
 │  └─────────────────────┘    └─────────────────────────┘    │
 │           │                            │                    │
-│           │   JSONL per session        │   Markdown files   │
-│           │   Auto-compacted           │   + Vector index   │
+│           │  SQLite + sqlite-vec       │  SQLite DB         │
+│           │  {summary, messages,       │  facts, prefs,     │
+│           │   embeddings} per chunk    │  learnings + embeds │
 │           │                            │                    │
-│           └────────────┬───────────────┘                    │
-│                        ▼                                    │
-│              ┌─────────────────┐                           │
-│              │  Vector Store   │                           │
-│              │   (LanceDB)     │                           │
-│              └─────────────────┘                           │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │           Archival Observer (async, non-blocking)    │   │
+│  │                                                      │   │
+│  │  agent turn completes                               │   │
+│  │       → fetch all messages from OpenCode            │   │
+│  │       → check watermark (how far we've archived)    │   │
+│  │       → if unarchived > 25k tokens: chunk + summarize│  │
+│  │       → store {summary, original messages}          │   │
+│  │       → advance watermark                           │   │
+│  └─────────────────────────────────────────────────────┘   │
 │                        │                                    │
 │                        ▼                                    │
-│              ┌─────────────────┐                           │
-│              │  Hybrid Search  │                           │
-│              │  (vector+text)  │                           │
-│              └─────────────────┘                           │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │           Hybrid Search (Vector + FTS5)             │   │
+│  │           SQLite + sqlite-vec + FTS5                │   │
+│  │           Vector similarity (0.7) + keyword (0.3)   │   │
+│  │           Internal HTTP API for OpenCode tools      │   │
+│  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Session Memory**: The JSONL conversation history. Auto-compacted via compaction agent when context window fills. Compaction summaries indexed into vector store.
+**Archival Memory**: An async shadow layer that observes OpenCode sessions. After each agent turn, it captures conversation chunks (~25k tokens each), summarizes them via gpt-4o-mini, and stores {summary, original_messages} pairs. This runs independently of OpenCode's own context compaction — our threshold is well below OpenCode's, so chunks are captured before messages are lost.
 
-**Persistent Memory**: Agent-writable knowledge base. The agent has a `memory_write` tool to save facts, learnings, preferences. Stored as markdown files in `memory/` directory. Indexed for retrieval.
+**Persistent Memory**: Agent-writable knowledge base via `memory_write` tool. Stored in SQLite with embeddings for semantic search. Categories: facts, preferences, learnings.
 
-**Memory Access Pattern**:
-- `memory_search(query)` → returns `[{id, summary, relevance, timestamp}]`
-- `memory_read(id, offset?, limit?)` → returns full session transcript or memory document (paginated)
+**Two-Phase Retrieval**:
+- `memory_search(query)` → returns `[{chunkId, threadId, summary, relevance, tokenCount, timeRange}]`
+- `memory_read(chunkId, threadId)` → returns full original messages from that chunk
 
-This gives the agent "perfect recall" when it needs verbatim details while keeping search results lightweight.
+This gives the agent "perfect recall" — search summaries for relevant history, then read exact messages when needed.
 
 ---
 
@@ -425,7 +433,8 @@ User sends "help me optimize the memory search function" via Telegram
 |----------|--------|-----------|
 | Core runtime | Single Node process | Simplicity, no distributed state |
 | Session storage | JSONL files | Human-readable, append-only, IS the log |
-| Memory | Markdown + LanceDB | Agent-writable, vector-searchable |
+| Memory (archival) | Async observer + JSON chunks + SQLite + embeddings | Captures history before compaction, two-phase retrieval |
+| Memory (persistent) | SQLite + sqlite-vec + OpenAI embeddings | Agent-writable, vector-searchable facts/preferences/learnings |
 | Parallelism | Read/write classification | Simple, no graph complexity |
 | Caching | LRU with write-invalidation | Easy wins, no stale data |
 | Channels | Adapter pattern | Add channels without core changes |

@@ -10,14 +10,14 @@ A self-improving headless AI agent with multi-channel support (Telegram, WhatsAp
 - Agent loop: message → OpenCode SDK → tool execution → response
 - Session storage: OpenCode file-based storage in `~/.local/share/opencode/storage/`
 - HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`)
-- Tools: `echo`, `time` + 6 GitHub tools + built-in coding tools (read, edit, write, bash, glob, grep)
+- Tools: `echo`, `time` + 6 GitHub tools + 3 memory tools + built-in coding tools (read, edit, write, bash, glob, grep)
 - WhatsApp channel via Twilio (webhook-based)
 - Dynamic system prompt from `config/SYSTEM_PROMPT.md` with self-improvement workflow
 - OpenCode embedded server (port 4096-4300)
 - **Phase 2: Self-improvement loop** - Agent can clone repos, modify code, run tests, create PRs via GitHub App
+- **Phase 3: Memory system** - SQLite + sqlite-vec + OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` tool for facts/preferences/learnings. Hybrid vector + FTS5 search. Internal HTTP API proxies DB operations for OpenCode tool compatibility.
 
-### Next Up (Phase 3)
-- Memory system (persistent memory, vector search)
+### Next Up
 - Observability (tool execution logging, session metadata)
 
 ## Quick Commands
@@ -28,6 +28,7 @@ pnpm run build        # Build TypeScript
 pnpm run start        # Start server (needs .env with OPENAI_API_KEY)
 pnpm run lint         # Run Biome linter
 pnpm run tsc          # Type check
+pnpm run memory:wipe  # Wipe all archived memories (dev utility)
 ```
 
 ## Key Files
@@ -43,7 +44,21 @@ pnpm run tsc          # Type check
 | `src/types/workspace.ts` | Workspace and git commit type definitions |
 | `src/.opencode/tool/` | Tool definitions (OpenCode auto-discovery) |
 | `src/.opencode/tool/github-*.ts` | 6 GitHub tools for self-improvement workflow |
-| `src/server/server.ts` | HTTP routes |
+| `src/.opencode/tool/memory-write.ts` | Save persistent memories (facts, preferences, learnings) via HTTP |
+| `src/.opencode/tool/memory-search.ts` | Hybrid vector + FTS5 search across archives and persistent memories via HTTP |
+| `src/.opencode/tool/memory-read.ts` | Read full messages from an archived chunk via HTTP |
+| `src/memory/db.ts` | SQLite database (better-sqlite3 + sqlite-vec), schema, CRUD, JSONL migration |
+| `src/memory/embeddings.ts` | OpenAI text-embedding-3-small wrapper (embedText, embedBatch) |
+| `src/memory/persistent.ts` | Persistent memory CRUD (writeMemory, deleteMemory, getMemory, listMemories) |
+| `src/memory/search.ts` | Hybrid vector + FTS5 search across summaries and persistent memories |
+| `src/memory/observer.ts` | Core archival logic: chunk detection, summarization, embedding, storage |
+| `src/memory/storage.ts` | File I/O for chunks and watermarks |
+| `src/memory/summarizer.ts` | LLM summarization of chunks via gpt-4o-mini |
+| `src/memory/tokenizer.ts` | Token estimation from OpenCode messages |
+| `src/memory/config.ts` | Memory configuration (DB path, embedding model, thresholds) |
+| `src/memory/types.ts` | ArchiveChunk, PersistentMemory, UnifiedSearchResult, etc. |
+| `src/server/server.ts` | HTTP routes (includes internal memory API) |
+| `src/server/memory-api.ts` | Internal memory API endpoints (write, search, read, delete) |
 | `src/server/webhooks.ts` | Twilio WhatsApp webhook route |
 | `src/config/config.ts` | Config loading (includes GitHub App credentials) |
 | `src/core/prompt.ts` | System prompt loading, tool injection, channel prompts |
@@ -107,6 +122,18 @@ Tools are auto-discovered by OpenCode at startup (no registry needed).
 - Auto-cleanup on process exit and stale workspace detection on startup
 - Self-repo URL documented in system prompt (https://github.com/EzraApple/fern)
 
+### Memory System (Phase 3)
+- **Storage**: SQLite via `better-sqlite3` + `sqlite-vec` extension for vector search. DB at `~/.fern/memory/fern.db`
+- **Embeddings**: OpenAI `text-embedding-3-small` (1536-dim) for semantic search
+- **Archival**: Async shadow layer observes sessions, chunks messages into ~25k token segments, summarizes via gpt-4o-mini, embeds, stores in SQLite
+- **Persistent memory**: `memory_write` tool lets agent store facts, preferences, learnings with tags
+- **Hybrid search**: Vector similarity (0.7 weight) + FTS5 keyword (0.3 weight), merged by ID, across both archives and persistent memories
+- **HTTP proxy pattern**: OpenCode tools run in OpenCode's embedded Go binary JS runtime which can't load native modules. Tools use `fetch()` to call internal API endpoints (`/internal/memory/*`) on the fern server, which handles all DB operations.
+- **Internal API**: `POST /internal/memory/write`, `POST /internal/memory/search`, `POST /internal/memory/read`, `DELETE /internal/memory/delete/:id`
+- Two-phase retrieval: `memory_search` finds relevant summaries → `memory_read` returns full original messages
+- Per-thread PQueue (concurrency: 1) prevents concurrent archival on same thread
+- Config via env vars: `FERN_MEMORY_ENABLED`, `FERN_MEMORY_PATH`, `FERN_MEMORY_CHUNK_TOKENS`, `FERN_MEMORY_MODEL`, `FERN_MEMORY_EMBEDDING_MODEL`
+
 ### GitHub Integration (Phase 2)
 - GitHub App authentication via Octokit (`@octokit/app`)
 - PRs created by "Fern" GitHub App (not user account)
@@ -165,7 +192,7 @@ fern/
 │   ├── tools/          # Tool definitions
 │   ├── server/         # HTTP server
 │   ├── channels/       # Channel adapters (WhatsApp via Twilio)
-│   ├── memory/         # Persistent memory (TODO)
+│   ├── memory/         # Async archival layer (observer, storage, search, summarizer)
 │   └── scheduler/      # Cron system (TODO)
 ├── config/             # Config files
 ├── agent-docs/         # AI development guidance

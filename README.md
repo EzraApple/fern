@@ -1,7 +1,7 @@
 #
 # Phase 2 Self-Improvement Test
 #
-# Fern 🌿
+# 🌿 Fern 🌿
 
 A self-improving headless AI agent that operates across multiple messaging channels (Telegram, WhatsApp, etc.) with persistent memory, parallel tool execution, and the ability to improve its own codebase through controlled PR submissions.
 

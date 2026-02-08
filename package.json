@@ -14,10 +14,24 @@
     "format": "biome format --write .",
     "tsc": "tsc --noEmit",
     "knip": "knip",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:memory": "vitest run --project memory",
+    "test:workspace-github": "vitest run --project workspace-github",
+    "test:server-channels": "vitest run --project server-channels",
+    "test:core-tools": "vitest run --project core-tools",
     "ci": "pnpm run lint && pnpm run tsc",
     "memory:wipe": "rm -rf ~/.fern/memory && echo 'Memory wiped (DB + archives).'"
   },
-  "keywords": ["ai", "agent", "llm", "telegram", "whatsapp", "self-improving"],
+  "keywords": [
+    "ai",
+    "agent",
+    "llm",
+    "telegram",
+    "whatsapp",
+    "self-improving"
+  ],
   "author": "Ezra Apple",
   "license": "MIT",
   "engines": {
@@ -45,7 +59,9 @@
     "@biomejs/biome": "^1.9.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "knip": "^5.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.18"
   }
 }

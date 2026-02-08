@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
 import { runAgentLoop } from "../core/index.js";
+import { createMemoryApi } from "./memory-api.js";
 import { createWhatsAppWebhookRoutes } from "./webhooks.js";
 
 const ChatInputSchema = z.object({
@@ -61,6 +62,9 @@ export function createServer(options?: ServerOptions) {
       return c.json({ error: errorMessage }, 500);
     }
   });
+
+  // Mount internal memory API
+  app.route("/internal/memory", createMemoryApi());
 
   // Mount WhatsApp webhook if adapter is available
   if (options?.whatsappAdapter) {

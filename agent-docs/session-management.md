@@ -145,33 +145,19 @@ async function maybeCompact(session: SessionWithHistory): Promise<void> {
 
 ### Compaction Process
 
+OpenCode handles live context compaction internally. Fern adds an **async archival layer** that captures conversation chunks *before* they're lost to compaction:
+
+- After each agent turn, the archival observer checks if unarchived tokens exceed the chunk threshold (~25k)
+- If so, it summarizes the oldest unarchived chunk via gpt-4o-mini and stores {summary, messages} to `~/.fern/memory/`
+- This is non-blocking (fire-and-forget) and independent of OpenCode's compaction
+- See [memory-system.md](memory-system.md) for full details
+
 ```typescript
-async function compactSession(session: SessionWithHistory): Promise<void> {
-  // Protect recent messages
-  const PROTECTED_COUNT = 10;
-  const oldMessages = session.history.slice(0, -PROTECTED_COUNT);
-  const recentMessages = session.history.slice(-PROTECTED_COUNT);
-
-  // Generate summary via compaction agent
-  const summary = await compactionAgent.summarize(oldMessages);
-
-  // Archive old events
-  await archiveEvents(session.key, oldMessages);
-
-  // Add compaction event
-  await appendEvent(session.key, {
-    type: "compaction",
-    summary,
-    archivedCount: oldMessages.length,
-    timestamp: now(),
-  });
-
-  // Update session history
-  session.history = [
-    { role: "system", content: `Previous conversation summary:\n${summary}` },
-    ...recentMessages,
-  ];
-}
+// In agent.ts, after getLastResponse():
+void onTurnComplete(input.sessionId, sessionId).catch((err) => {
+  console.warn("[Memory] Archival observer error:", err);
+});
+```
 ```
 
 ## Channel Queue

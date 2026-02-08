@@ -425,6 +425,23 @@ export async function getLastResponse(sessionId: string): Promise<string> {
 }
 
 /**
+ * Get all messages in a session (for memory archival observer)
+ */
+export async function getSessionMessages(sessionId: string): Promise<unknown[]> {
+  const client = await getClient();
+
+  try {
+    const result = await client.session.messages({
+      path: { id: sessionId },
+    });
+    return result.data ?? [];
+  } catch (error) {
+    console.error(`[OpenCode] Failed to get messages for session ${sessionId}:`, error);
+    return [];
+  }
+}
+
+/**
  * List available tools
  */
 export async function listTools(): Promise<string[]> {

@@ -8,18 +8,19 @@ A self-improving headless AI agent that operates across multiple messaging chann
 
 ## Current Functionality
 
-Phase 1 MVP + Phase 2 Self-Improvement:
+Phase 1 MVP + Phase 2 Self-Improvement + Phase 3 Memory:
 
 - **Agent Loop**: OpenCode SDK-powered message → LLM → tool execution → response cycle
 - **Session Storage**: OpenCode file-based storage in `~/.local/share/opencode/storage/`
-- **Tools**: `echo`, `time` + 6 GitHub tools + built-in coding tools (read, edit, write, bash, glob, grep)
+- **Tools**: `echo`, `time` + 6 GitHub tools + 3 memory tools + built-in coding tools (read, edit, write, bash, glob, grep)
 - **HTTP API**: Hono server with `/health`, `/chat`, and `/webhooks/whatsapp` endpoints
 - **WhatsApp Channel**: Twilio-based WhatsApp integration with webhook
 - **Dynamic System Prompt**: Personality, tool descriptions, and self-improvement workflow from `config/SYSTEM_PROMPT.md`
 - **Self-Improvement Loop**: Agent can clone repos, modify code in isolated workspaces, run tests, and create PRs via GitHub App
 - **Workspace Isolation**: All code modifications in temp directories (`/tmp/fern-workspaces/`) with auto-cleanup
 - **GitHub Integration**: Authenticated via GitHub App, PRs created as "Fern" bot
-- **Configuration**: JSON5 config + .env support for API keys and GitHub App credentials
+- **Memory System**: SQLite + sqlite-vec powered memory with OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` for facts/preferences/learnings. Hybrid vector + FTS5 search (`memory_search` → `memory_read`)
+- **Configuration**: JSON5 config + .env support for API keys, GitHub App credentials, and memory settings
 
 ### Quick Start
 
@@ -79,9 +80,9 @@ curl -X POST http://localhost:4000/chat \
 
 ---
 
-## Planned Features (Phase 3+)
+## Planned Features
 
-- **Memory System**: Persistent agent-written knowledge with vector search (Phase 3)
+- **Memory System**: Phase 3 complete. Next: cross-session auto-recall, memory decay/consolidation
 - **Observability**: Tool execution logging, session metadata, cost tracking (Phase 4)
 - **Scheduling**: Cron jobs, deferred tasks, reminders (Phase 5)
 - **Tool Enhancements**: Parallel read execution, result caching, background task execution, parallel subagent spawning (Phase 6)
@@ -100,7 +101,7 @@ fern/
 │   ├── tools/          # Tool definitions
 │   ├── server/         # HTTP server (Hono)
 │   ├── channels/       # Channel adapters (WhatsApp via Twilio)
-│   ├── memory/         # Persistent memory (coming soon)
+│   ├── memory/         # Async archival layer (observer, storage, search)
 │   └── scheduler/      # Cron/scheduling (coming soon)
 ├── config/             # Configuration files
 ├── agent-docs/         # AI development guidance
@@ -128,7 +129,8 @@ Requirements:
 |----------|--------|-----------|
 | Core runtime | Single Node process | Simplicity, no distributed state |
 | Session storage | JSONL files | Human-readable, append-only, IS the log |
-| Memory | Markdown + LanceDB | Agent-writable, vector-searchable |
+| Memory (archival) | Async observer + JSON chunks + SQLite + embeddings | Captures history before compaction, two-phase retrieval |
+| Memory (persistent) | SQLite + sqlite-vec + OpenAI embeddings | Agent-writable, vector-searchable facts/preferences/learnings |
 | Parallelism | Read/write classification | Simple, no graph complexity |
 | Caching | LRU with write-invalidation | Easy wins, no stale data |
 | Channels | Adapter pattern | Add channels without core changes |

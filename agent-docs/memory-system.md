@@ -1,224 +1,212 @@
 ---
 name: Memory System
 description: |
-  How the Fern memory system works - session and persistent memory.
-  Reference when: working with session memory, persistent memory, memory search/read, compaction, vector storage.
+  How the Fern memory system works - async archival layer, persistent memory, hybrid search, and the HTTP proxy architecture.
+  Reference when: working with memory archival, search/retrieval tools, SQLite DB, embeddings, storage layout.
 ---
 
 # Memory System
 
-Fern has two types of memory:
+Fern has a two-layer memory architecture backed by SQLite + sqlite-vec:
 
-1. **Session Memory** - Conversation history (JSONL per session)
-2. **Persistent Memory** - Agent-written knowledge (markdown + vector index)
+1. **Archival Memory** - Async shadow layer that captures, summarizes, embeds, and stores conversation chunks
+2. **Persistent Memory** - Agent-written knowledge base (facts, preferences, learnings) via `memory_write` tool
 
-## Session Memory
+Both layers share the same SQLite database (`~/.fern/memory/fern.db`) with vector search via `sqlite-vec` and keyword search via FTS5.
 
-### Storage Format
+## Architecture: HTTP Proxy Pattern
 
-Each session is stored as a JSONL file:
+OpenCode tools run inside OpenCode's embedded Go binary JS runtime, which **cannot** load native Node modules (`better-sqlite3`, `node:sqlite`). To solve this:
 
-```
-sessions/{channelId}_{userId}/session.jsonl
-```
-
-Each line is an event:
-
-```jsonl
-{"type":"message","role":"user","content":"Hello","timestamp":"..."}
-{"type":"message","role":"assistant","content":"Hi there!","timestamp":"..."}
-{"type":"tool_call","toolName":"read","args":{"path":"..."},"timestamp":"..."}
-{"type":"tool_result","toolCallId":"tc_123","result":"...","timestamp":"..."}
-```
-
-### Session Metadata
-
-Metadata is stored separately:
+- **Fern server process**: Has direct access to `better-sqlite3` and `sqlite-vec`. Exposes internal HTTP API at `/internal/memory/*`.
+- **OpenCode tools**: Use `fetch()` to call the fern server's internal API instead of importing DB code directly.
 
 ```
-sessions/{channelId}_{userId}/metadata.json
+OpenCode Runtime (Go binary)          Fern Server (Node.js)
+┌────────────────────────┐            ┌────────────────────────┐
+│  memory_write tool     │──fetch()──→│ /internal/memory/write │
+│  memory_search tool    │──fetch()──→│ /internal/memory/search│
+│  memory_read tool      │──fetch()──→│ /internal/memory/read  │
+└────────────────────────┘            └─────────┬──────────────┘
+                                                │
+                                      ┌─────────▼──────────────┐
+                                      │  better-sqlite3        │
+                                      │  + sqlite-vec          │
+                                      │  + OpenAI embeddings   │
+                                      └────────────────────────┘
 ```
 
-```json
-{
-  "id": "session_abc123",
-  "channelId": "telegram_12345",
-  "userId": "user_67890",
-  "messageCount": 42,
-  "tokenCount": 15000,
-  "createdAt": "2024-01-01T00:00:00Z",
-  "updatedAt": "2024-01-02T12:00:00Z"
-}
+Tool URL resolution: `FERN_API_URL` env var, or `http://127.0.0.1:${FERN_PORT || 4000}`.
+
+## Archival Memory (Async Shadow Layer)
+
+### How It Works
+
+An invisible async observer shadows each OpenCode session. After every agent turn:
+
+1. Fetches all messages from the OpenCode session
+2. Checks the watermark (how far archival has progressed for this thread)
+3. If unarchived messages exceed the chunk threshold (~25k tokens):
+   - Pops the oldest unarchived chunk
+   - Summarizes it via gpt-4o-mini (~10-20k tokens → ~1k summary)
+   - Embeds the summary via OpenAI text-embedding-3-small
+   - Stores summary + embedding in SQLite, original messages as JSON file
+   - Advances the watermark
+
+This runs as fire-and-forget — it never blocks the agent response.
+
+### Hook Point
+
+In `src/core/agent.ts`, after `getLastResponse()`:
+
+```typescript
+void onTurnComplete(input.sessionId, sessionId).catch((err) => {
+  console.warn("[Memory] Archival observer error:", err);
+});
 ```
 
-### Context Window Management
+### Storage Layout
 
-Session memory is loaded into context for each LLM call. When approaching limits:
-
-1. **Soft limit** - Trigger compaction agent
-2. **Hard limit** - Truncate oldest messages
+```
+~/.fern/memory/
+  fern.db                          # SQLite database (summaries, memories, FTS5, vec0)
+  archives/
+    {threadId}/                    # e.g., "whatsapp_+1234567890"
+      watermark.json               # Archival progress tracker
+      chunks/
+        chunk_{ulid}.json          # {id, summary, messages[], tokenCount, messageRange}
+```
 
 ## Persistent Memory
 
-### Storage Format
-
-Agent-written memories are markdown files:
-
-```
-memory/{memoryId}.md
-```
-
-```markdown
----
-id: mem_abc123
-type: fact
-tags: [user_preference, settings]
-createdAt: 2024-01-01T00:00:00Z
----
-
-User prefers dark mode and concise responses.
-```
-
-### Vector Index
-
-Memories are embedded and indexed in LanceDB for semantic search:
+Agent-written memories stored in SQLite with embeddings:
 
 ```typescript
-// Vector store structure
-{
-  id: string,
-  content: string,
-  embedding: number[],
-  metadata: {
-    type: string,
-    tags: string[],
-    createdAt: string,
-  }
-}
+await memory_write({
+  type: "fact",       // "fact" | "preference" | "learning"
+  content: "User's timezone is PST",
+  tags: ["timezone", "user-info"],
+});
 ```
+
+Each memory gets:
+- Unique ID (`mem_{ulid}`)
+- OpenAI embedding for semantic search
+- FTS5 index entry for keyword search
+- Stored in `memories`, `memories_fts`, and `memories_vec` tables
+
+## Database Schema
+
+```sql
+-- Archival summaries
+summaries (id, thread_id, summary, token_count, created_at, time_start, time_end)
+summaries_fts (summary, id, thread_id)     -- FTS5 virtual table
+summaries_vec (id, embedding FLOAT[1536])  -- sqlite-vec virtual table
+
+-- Persistent memories
+memories (id, type, content, tags, created_at, updated_at)
+memories_fts (content, id, type)           -- FTS5 virtual table
+memories_vec (id, embedding FLOAT[1536])   -- sqlite-vec virtual table
+```
+
+## Hybrid Search
+
+Search uses a weighted combination of vector similarity and FTS5 keyword matching:
+
+```
+final_score = 0.7 × vector_score + 0.3 × fts5_score
+```
+
+1. **Embed query** via OpenAI text-embedding-3-small
+2. **Vector search**: `vec_distance_cosine()` on `summaries_vec` and `memories_vec`
+3. **FTS5 search**: `bm25()` ranking on `summaries_fts` and `memories_fts`
+4. **Merge by ID**: Combine scores for results found by both methods
+5. **Filter**: Drop results below minimum score threshold (0.05)
+6. **Sort**: Return top N by combined score
+
+If vector search is unavailable (sqlite-vec failed to load), falls back to FTS5-only.
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/memory/db.ts` | SQLite singleton (better-sqlite3 + sqlite-vec), schema, CRUD |
+| `src/memory/embeddings.ts` | OpenAI text-embedding-3-small wrapper |
+| `src/memory/persistent.ts` | Persistent memory CRUD (writeMemory, deleteMemory, etc.) |
+| `src/memory/search.ts` | Hybrid vector + FTS5 search engine |
+| `src/memory/observer.ts` | Core archival logic, per-thread PQueue |
+| `src/memory/storage.ts` | File I/O for chunks and watermarks |
+| `src/memory/summarizer.ts` | gpt-4o-mini summarization (direct OpenAI call) |
+| `src/memory/tokenizer.ts` | Token estimation from OpenCode messages |
+| `src/memory/config.ts` | Configuration with env var overrides |
+| `src/memory/types.ts` | ArchiveChunk, PersistentMemory, UnifiedSearchResult, etc. |
+| `src/server/memory-api.ts` | Internal HTTP API endpoints for tools |
+
+### Configuration
+
+Defaults (overridable via env vars):
+
+| Setting | Default | Env Var |
+|---------|---------|---------|
+| Enabled | `true` | `FERN_MEMORY_ENABLED` |
+| Storage path | `~/.fern/memory` | `FERN_MEMORY_PATH` |
+| DB path | `~/.fern/memory/fern.db` | (derived from storage path) |
+| Chunk threshold | 25,000 tokens | `FERN_MEMORY_CHUNK_TOKENS` |
+| Summarization model | `gpt-4o-mini` | `FERN_MEMORY_MODEL` |
+| Embedding model | `text-embedding-3-small` | `FERN_MEMORY_EMBEDDING_MODEL` |
 
 ## Memory Tools
 
+### memory_write
+
+Save a persistent memory:
+
+```typescript
+const result = await memory_write({
+  type: "preference",
+  content: "User prefers dark mode in all apps",
+  tags: ["ui", "theme"],
+});
+// → "Memory saved: mem_01KGXGQNBT... [preference] User prefers dark mode..."
+```
+
 ### memory_search
 
-Returns summaries and IDs for relevant memories:
+Search across both archives and persistent memories:
 
 ```typescript
 const results = await memory_search({
   query: "user preferences for UI",
   limit: 5,
 });
-
-// Returns:
-[
-  {
-    id: "mem_abc123",
-    summary: "User prefers dark mode and concise responses",
-    relevance: 0.92,
-    timestamp: "2024-01-01T00:00:00Z",
-  },
-  // ...
-]
+// Returns unified results from both sources with relevance scores
 ```
 
 ### memory_read
 
-Returns full content of a specific memory (paginated):
+Read full original messages from an archived chunk:
 
 ```typescript
-const memory = await memory_read({
-  id: "mem_abc123",
-  offset: 0,
-  limit: 1000, // characters
+const transcript = await memory_read({
+  chunkId: "chunk_01HWXYZ...",
+  threadId: "whatsapp_+1234567890",
 });
-
-// Returns full markdown content
+// Returns formatted transcript with summary + full messages
 ```
 
-### memory_write
-
-Creates or updates a persistent memory:
-
-```typescript
-await memory_write({
-  type: "fact",
-  tags: ["user_preference"],
-  content: "User's timezone is PST",
-});
-```
-
-## Two-Step Memory Access Pattern
+## Two-Phase Retrieval Pattern
 
 For efficient context usage:
 
-1. **Search first** - Get summaries and IDs
-2. **Read if needed** - Fetch full content only when necessary
+1. **Search first** — Get summaries and chunk IDs via `memory_search`
+2. **Read if needed** — Fetch full original messages only when the summary isn't enough
 
-```typescript
-// Agent workflow
-const searchResults = await memory_search({ query: "user timezone" });
+This gives the agent "perfect memory" — it can find relevant history quickly, then drill into exact details when needed.
 
-// Only read full content if summary isn't enough
-if (needsMoreDetail(searchResults[0])) {
-  const fullMemory = await memory_read({ id: searchResults[0].id });
-}
-```
+## Dev Utilities
 
-## Compaction
-
-When session context exceeds limits:
-
-### Compaction Flow
-
-1. Compaction agent summarizes old conversation
-2. Summary is saved as a new message
-3. Old messages are archived (not deleted)
-4. Summary is indexed in vector store
-
-```typescript
-// Compaction trigger
-if (sessionTokenCount > COMPACTION_THRESHOLD) {
-  const summary = await compactionAgent.summarize(oldMessages);
-
-  // Replace old messages with summary
-  session.archive(oldMessages);
-  session.addMessage({
-    role: "system",
-    content: `Previous conversation summary:\n${summary}`,
-  });
-
-  // Index for future retrieval
-  await vectorStore.index({
-    content: summary,
-    metadata: { type: "session_summary", sessionId },
-  });
-}
-```
-
-### Compaction Threshold
-
-```typescript
-const COMPACTION_THRESHOLD = 100_000; // tokens
-const PROTECTED_RECENT = 20_000; // tokens (recent messages protected)
-```
-
-## Hybrid Search
-
-Memory search uses hybrid (vector + keyword) matching:
-
-```typescript
-async function hybridSearch(query: string, limit: number) {
-  const vectorResults = await vectorStore.search(query, limit * 2);
-  const keywordResults = await keywordIndex.search(query, limit * 2);
-
-  // Combine with weights
-  const combined = mergeResults(vectorResults, keywordResults, {
-    vectorWeight: 0.7,
-    keywordWeight: 0.3,
-  });
-
-  return combined.slice(0, limit);
-}
+```bash
+pnpm run memory:wipe  # Delete all archived memories + DB (for clean dev cycles)
 ```
 
 ## Anti-Patterns
@@ -227,37 +215,29 @@ async function hybridSearch(query: string, limit: number) {
 
 ```typescript
 // Bad - loads everything
-const allMemories = await getAllMemories();
-const relevant = allMemories.filter(m => m.content.includes(query));
+const allChunks = getAllChunks();
 
-// Good - search first
-const relevant = await memory_search({ query });
+// Good - search first, read specific chunks
+const results = await memory_search({ query: "deployment config" });
+const details = await memory_read({ chunkId: results[0].chunkId, threadId: results[0].threadId });
 ```
 
-### Don't: Store transient data in persistent memory
+### Don't: Block the agent loop on archival
 
 ```typescript
-// Bad - this belongs in session
-await memory_write({
-  content: "User just asked about the weather",
-});
+// Bad - blocks response
+await onTurnComplete(threadId, sessionId);
 
-// Good - only store lasting knowledge
-await memory_write({
-  content: "User lives in Seattle, WA",
-});
+// Good - fire and forget
+void onTurnComplete(threadId, sessionId).catch(console.warn);
 ```
 
-### Don't: Skip compaction until overflow
+### Don't: Import DB code in OpenCode tools
 
 ```typescript
-// Bad - reactive compaction
-if (contextOverflow) {
-  compact();
-}
+// Bad - native module won't load in OpenCode's runtime
+import { writeMemory } from "../../memory/persistent.js";
 
-// Good - proactive compaction
-if (tokenCount > COMPACTION_THRESHOLD) {
-  compact();
-}
+// Good - use HTTP proxy to fern server
+const res = await fetch(`${getFernUrl()}/internal/memory/write`, { ... });
 ```

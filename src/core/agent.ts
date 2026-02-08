@@ -1,3 +1,4 @@
+import { onTurnComplete } from "../memory/index.js";
 import * as opencodeService from "./opencode-service.js";
 import { buildSystemPrompt } from "./prompt.js";
 import type { AgentInput, AgentResult, ToolCallRecord } from "./types.js";
@@ -45,6 +46,11 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
 
     // 5. Get response from OpenCode
     const response = await opencodeService.getLastResponse(sessionId);
+
+    // 6. Fire archival observer (non-blocking)
+    void onTurnComplete(input.sessionId, sessionId).catch((err) => {
+      console.warn("[Memory] Archival observer error:", err);
+    });
 
     return {
       sessionId: input.sessionId, // Return original channel session ID

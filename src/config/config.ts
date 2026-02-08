@@ -24,6 +24,10 @@ export interface Config {
     basePath?: string;
     maxAgeMs?: number;
   };
+  memory?: {
+    enabled?: boolean;
+    storagePath?: string;
+  };
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -120,6 +124,16 @@ export function loadConfig(): Config {
   config.workspaces = {
     basePath: workspaceBasePath,
     maxAgeMs: 24 * 60 * 60 * 1000, // 24 hours
+  };
+
+  // Add memory config
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const memoryEnabled = process.env["FERN_MEMORY_ENABLED"];
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  const memoryPath = process.env["FERN_MEMORY_PATH"];
+  config.memory = {
+    enabled: memoryEnabled !== "false",
+    storagePath: memoryPath,
   };
 
   cachedConfig = config;

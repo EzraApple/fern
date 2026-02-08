@@ -28,7 +28,7 @@ logs/
 
 # Runtime data
 sessions/
-memory/
+/memory/
 workspaces/
 
 # pnpm

@@ -88,25 +88,30 @@ Give the agent long-term recall beyond session history.
 
 **Goal:** Agent can remember facts across sessions and retrieve relevant context.
 
-### 3.1 Session Memory Enhancement
-- Context window tracking
-- Compaction trigger threshold
-- Compaction agent for summarization
+### 3.1 Async Archival Layer (Compaction Shadow)
+- Invisible async observer that captures conversation chunks before OpenCode compacts them
+- Fires after each agent turn (non-blocking, fire-and-forget)
+- Chunks conversation history into ~25k token segments
+- Summarizes each chunk via gpt-4o-mini (~10-20k tokens → ~1k summary)
+- Stores {summary, original_messages} pairs to `~/.fern/memory/archives/`
+- Watermark tracking per thread to avoid re-archiving
+- Per-thread PQueue serialization prevents concurrent archival
 
-### 3.2 Persistent Memory
-- `memory/` directory for agent-written knowledge
-- Markdown files with YAML frontmatter
-- Categories: facts, preferences, learnings
+### 3.2 Memory Search & Retrieval Tools
+- `memory_search` - Weighted term matching on summary index, returns ranked results
+- `memory_read` - Read full original messages from an archived chunk
 
-### 3.3 Vector Storage
-- LanceDB for embeddings
-- Hybrid search (vector + keyword)
-- Embedding via OpenAI or local model
+### 3.3 Persistent Memory
+- SQLite database (`~/.fern/memory/fern.db`) via `better-sqlite3` + `sqlite-vec`
+- `memory_write` tool for agent-created memories (facts, preferences, learnings)
+- Embedded with OpenAI `text-embedding-3-small` for semantic retrieval
+- Internal HTTP API (`/internal/memory/*`) proxies DB operations for OpenCode tool compatibility
 
-### 3.4 Memory Tools
-- `memory_search` - Search memories, return summaries + IDs
-- `memory_read` - Read full memory content (paginated)
-- `memory_write` - Create/update persistent memory
+### 3.4 Vector Storage & Hybrid Search
+- `sqlite-vec` extension for vector similarity search (cosine distance)
+- Hybrid scoring: vector similarity (0.7 weight) + FTS5 keyword (0.3 weight)
+- Unified search across both archived summaries and persistent memories
+- OpenAI `text-embedding-3-small` (1536-dim) embeddings
 
 ---
 
@@ -277,12 +282,19 @@ Polish and production-readiness.
 **Note**: GitHub App authentication configured with Octokit. PRs created by "Fern" GitHub App. All code modifications happen in isolated workspaces, never touching the live codebase.
 
 ### Phase 3: Memory System
-- [ ] Compaction agent
-- [ ] Persistent memory storage
-- [ ] LanceDB vector store
-- [ ] memory_search tool
-- [ ] memory_read tool
-- [ ] memory_write tool
+- [x] Async archival observer (chunks + summarizes conversation history)
+- [x] Archive storage (chunk files, watermarks, JSONL summary index)
+- [x] Token estimation from OpenCode messages
+- [x] LLM summarization via gpt-4o-mini (direct API call)
+- [x] memory_search tool (hybrid vector + FTS5 search)
+- [x] memory_read tool (full chunk transcript retrieval)
+- [x] Memory config (env var overrides, thresholds)
+- [x] `pnpm run memory:wipe` dev utility
+- [x] Persistent agent-written memory (memory_write tool)
+- [x] Embedding-based semantic search (OpenAI text-embedding-3-small)
+- [x] SQLite + sqlite-vec vector store (better-sqlite3)
+- [x] Internal HTTP API for OpenCode tool compatibility
+- [x] JSONL → SQLite migration (auto on first startup)
 
 ### Phase 4: Observability
 - [ ] Tool execution logging

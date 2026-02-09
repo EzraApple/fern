@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { ulid } from "ulid";
 import { loadConfig } from "../config/config.js";
 import type { WorkspaceInfo } from "../types/workspace.js";
+import { getAuthenticatedCloneUrl } from "./github-service.js";
 
 const execPromise = promisify(exec);
 
@@ -34,9 +35,10 @@ export async function createWorkspace(repoUrl: string): Promise<WorkspaceInfo> {
     // Create workspace directory
     fs.mkdirSync(workspacePath, { recursive: true });
 
-    // Clone repository
-    console.info(`[Workspace] Cloning ${repoUrl}...`);
-    const { stderr } = await execPromise(`git clone "${repoUrl}" "${workspacePath}"`);
+    // Clone repository using GitHub App authentication
+    console.info(`[Workspace] Cloning ${repoUrl} (via GitHub App)...`);
+    const authenticatedUrl = await getAuthenticatedCloneUrl(repoUrl);
+    const { stderr } = await execPromise(`git clone "${authenticatedUrl}" "${workspacePath}"`);
 
     if (stderr?.includes("fatal")) {
       throw new Error(`Git clone failed: ${stderr}`);

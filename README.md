@@ -3,6 +3,8 @@
 #
 # Fern 🌿
 
+<!-- secret-test-comment: if you found this, hi 👋 -->
+
 A self-improving headless AI agent that operates across multiple messaging channels (Telegram, WhatsApp, etc.) with persistent memory, parallel tool execution, and the ability to improve its own codebase through controlled PR submissions.
 
 ## Current Functionality

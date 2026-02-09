@@ -156,7 +156,7 @@ describe("onTurnComplete", () => {
     // Unarchived: msg-4 (60) + msg-5 (60) = 120 tokens, above threshold
     expect(mockSummarizeChunk).toHaveBeenCalled();
     // Verify the summarized chunk only includes unarchived messages
-    const chunkMessages = mockSummarizeChunk.mock.calls[0][0] as OpenCodeMessage[];
+    const chunkMessages = mockSummarizeChunk.mock.calls[0]![0] as OpenCodeMessage[];
     const chunkIds = chunkMessages.map((m) => m.id);
     expect(chunkIds).not.toContain("msg-1");
     expect(chunkIds).not.toContain("msg-2");
@@ -306,7 +306,7 @@ describe("onTurnComplete", () => {
 
     // Should still archive because the single oversized message is included
     expect(mockWriteChunk).toHaveBeenCalled();
-    const chunk = mockWriteChunk.mock.calls[0][0];
+    const chunk = mockWriteChunk.mock.calls[0]![0];
     expect(chunk.messageCount).toBe(1);
   });
 

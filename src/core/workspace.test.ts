@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock external modules BEFORE importing the module under test
 vi.mock("node:child_process", () => ({
@@ -38,14 +38,14 @@ import { exec } from "node:child_process";
 import * as fs from "node:fs";
 import { ulid } from "ulid";
 import {
-  createWorkspace,
-  getWorkspaceById,
-  getAllWorkspaces,
-  cleanupWorkspace,
   cleanupAllWorkspaces,
   cleanupStaleWorkspaces,
-  updateWorkspaceBranch,
+  cleanupWorkspace,
+  createWorkspace,
+  getAllWorkspaces,
+  getWorkspaceById,
   registerCleanupHandlers,
+  updateWorkspaceBranch,
 } from "./workspace.js";
 
 const mockExec = exec as unknown as ReturnType<typeof vi.fn>;
@@ -71,10 +71,9 @@ describe("workspace", () => {
       expect(workspace.repoUrl).toBe("https://github.com/test/repo.git");
       expect(workspace.branch).toBe("main");
       expect(typeof workspace.createdAt).toBe("number");
-      expect(fs.mkdirSync).toHaveBeenCalledWith(
-        "/tmp/fern-workspaces/MOCK_ULID_001",
-        { recursive: true },
-      );
+      expect(fs.mkdirSync).toHaveBeenCalledWith("/tmp/fern-workspaces/MOCK_ULID_001", {
+        recursive: true,
+      });
     });
 
     it("should register workspace in registry after creation", async () => {
@@ -96,23 +95,23 @@ describe("workspace", () => {
       });
       vi.mocked(fs.existsSync).mockReturnValue(true);
 
-      await expect(
-        createWorkspace("https://github.com/test/nonexistent.git"),
-      ).rejects.toThrow("Failed to create workspace");
-
-      expect(fs.rmSync).toHaveBeenCalledWith(
-        "/tmp/fern-workspaces/MOCK_ULID_001",
-        { recursive: true, force: true },
+      await expect(createWorkspace("https://github.com/test/nonexistent.git")).rejects.toThrow(
+        "Failed to create workspace"
       );
+
+      expect(fs.rmSync).toHaveBeenCalledWith("/tmp/fern-workspaces/MOCK_ULID_001", {
+        recursive: true,
+        force: true,
+      });
     });
 
     it("should throw and cleanup on exec rejection", async () => {
       mockExec.mockRejectedValueOnce(new Error("Command failed"));
       vi.mocked(fs.existsSync).mockReturnValue(true);
 
-      await expect(
-        createWorkspace("https://github.com/test/repo.git"),
-      ).rejects.toThrow("Failed to create workspace: Command failed");
+      await expect(createWorkspace("https://github.com/test/repo.git")).rejects.toThrow(
+        "Failed to create workspace: Command failed"
+      );
 
       expect(fs.rmSync).toHaveBeenCalled();
     });
@@ -121,9 +120,7 @@ describe("workspace", () => {
       mockExec.mockRejectedValueOnce(new Error("fail"));
       vi.mocked(fs.existsSync).mockReturnValue(false);
 
-      await expect(
-        createWorkspace("https://github.com/test/repo.git"),
-      ).rejects.toThrow();
+      await expect(createWorkspace("https://github.com/test/repo.git")).rejects.toThrow();
 
       expect(fs.rmSync).not.toHaveBeenCalled();
     });
@@ -132,15 +129,13 @@ describe("workspace", () => {
       mockExec.mockRejectedValueOnce("string error");
       vi.mocked(fs.existsSync).mockReturnValue(false);
 
-      await expect(
-        createWorkspace("https://github.com/test/repo.git"),
-      ).rejects.toBe("string error");
+      await expect(createWorkspace("https://github.com/test/repo.git")).rejects.toBe(
+        "string error"
+      );
     });
 
     it("should use unique ULID for each workspace", async () => {
-      mockUlid
-        .mockReturnValueOnce("ULID_A")
-        .mockReturnValueOnce("ULID_B");
+      mockUlid.mockReturnValueOnce("ULID_A").mockReturnValueOnce("ULID_B");
 
       mockExec
         .mockResolvedValueOnce({ stdout: "", stderr: "" })
@@ -180,9 +175,7 @@ describe("workspace", () => {
     });
 
     it("should return all created workspaces", async () => {
-      mockUlid
-        .mockReturnValueOnce("ID_1")
-        .mockReturnValueOnce("ID_2");
+      mockUlid.mockReturnValueOnce("ID_1").mockReturnValueOnce("ID_2");
       mockExec
         .mockResolvedValueOnce({ stdout: "", stderr: "" })
         .mockResolvedValueOnce({ stdout: "main\n", stderr: "" })
@@ -209,10 +202,10 @@ describe("workspace", () => {
 
       await cleanupWorkspace("/tmp/fern-workspaces/MOCK_ULID_001");
 
-      expect(fs.rmSync).toHaveBeenCalledWith(
-        "/tmp/fern-workspaces/MOCK_ULID_001",
-        { recursive: true, force: true },
-      );
+      expect(fs.rmSync).toHaveBeenCalledWith("/tmp/fern-workspaces/MOCK_ULID_001", {
+        recursive: true,
+        force: true,
+      });
       expect(getWorkspaceById("MOCK_ULID_001")).toBeNull();
     });
 
@@ -228,9 +221,7 @@ describe("workspace", () => {
         throw new Error("Permission denied");
       });
 
-      await expect(
-        cleanupWorkspace("/tmp/fern-workspaces/some-path"),
-      ).resolves.not.toThrow();
+      await expect(cleanupWorkspace("/tmp/fern-workspaces/some-path")).resolves.not.toThrow();
     });
   });
 
@@ -296,17 +287,19 @@ describe("workspace", () => {
       // Mock filesystem operations
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readdirSync).mockReturnValue([
-        { name: "MOCK_ULID_001", isDirectory: () => true } as unknown as ReturnType<typeof fs.readdirSync>[0],
+        { name: "MOCK_ULID_001", isDirectory: () => true } as unknown as ReturnType<
+          typeof fs.readdirSync
+        >[0],
       ]);
 
       expect(getAllWorkspaces()).toHaveLength(1);
 
       cleanupStaleWorkspaces(100_000);
 
-      expect(fs.rmSync).toHaveBeenCalledWith(
-        "/tmp/fern-workspaces/MOCK_ULID_001",
-        { recursive: true, force: true },
-      );
+      expect(fs.rmSync).toHaveBeenCalledWith("/tmp/fern-workspaces/MOCK_ULID_001", {
+        recursive: true,
+        force: true,
+      });
       expect(getAllWorkspaces()).toHaveLength(0);
       expect(getWorkspaceById("MOCK_ULID_001")).toBeNull();
     });
@@ -314,7 +307,9 @@ describe("workspace", () => {
     it("should remove stale directories not in registry based on file stats", () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readdirSync).mockReturnValue([
-        { name: "old-workspace", isDirectory: () => true } as unknown as ReturnType<typeof fs.readdirSync>[0],
+        { name: "old-workspace", isDirectory: () => true } as unknown as ReturnType<
+          typeof fs.readdirSync
+        >[0],
       ]);
       vi.mocked(fs.statSync).mockReturnValue({
         mtimeMs: Date.now() - 200_000,
@@ -322,16 +317,18 @@ describe("workspace", () => {
 
       cleanupStaleWorkspaces(100_000);
 
-      expect(fs.rmSync).toHaveBeenCalledWith(
-        "/tmp/fern-workspaces/old-workspace",
-        { recursive: true, force: true },
-      );
+      expect(fs.rmSync).toHaveBeenCalledWith("/tmp/fern-workspaces/old-workspace", {
+        recursive: true,
+        force: true,
+      });
     });
 
     it("should not remove fresh directories not in registry", () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readdirSync).mockReturnValue([
-        { name: "fresh-workspace", isDirectory: () => true } as unknown as ReturnType<typeof fs.readdirSync>[0],
+        { name: "fresh-workspace", isDirectory: () => true } as unknown as ReturnType<
+          typeof fs.readdirSync
+        >[0],
       ]);
       vi.mocked(fs.statSync).mockReturnValue({
         mtimeMs: Date.now(),
@@ -345,7 +342,9 @@ describe("workspace", () => {
     it("should skip non-directory entries", () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readdirSync).mockReturnValue([
-        { name: "file.txt", isDirectory: () => false } as unknown as ReturnType<typeof fs.readdirSync>[0],
+        { name: "file.txt", isDirectory: () => false } as unknown as ReturnType<
+          typeof fs.readdirSync
+        >[0],
       ]);
 
       cleanupStaleWorkspaces(1);

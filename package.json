@@ -24,14 +24,7 @@
     "ci": "pnpm run lint && pnpm run tsc",
     "memory:wipe": "rm -rf ~/.fern/memory && echo 'Memory wiped (DB + archives).'"
   },
-  "keywords": [
-    "ai",
-    "agent",
-    "llm",
-    "telegram",
-    "whatsapp",
-    "self-improving"
-  ],
+  "keywords": ["ai", "agent", "llm", "telegram", "whatsapp", "self-improving"],
   "author": "Ezra Apple",
   "license": "MIT",
   "engines": {

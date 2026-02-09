@@ -137,11 +137,9 @@ describe("WhatsAppAdapter", () => {
     it("delegates to gateway.validateRequest", () => {
       const result = adapter.validateWebhook("sig", "https://example.com", { key: "val" });
       expect(result).toBe(true);
-      expect(mockValidateRequest).toHaveBeenCalledWith(
-        "sig",
-        "https://example.com",
-        { key: "val" },
-      );
+      expect(mockValidateRequest).toHaveBeenCalledWith("sig", "https://example.com", {
+        key: "val",
+      });
     });
   });
 });

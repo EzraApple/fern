@@ -283,7 +283,7 @@ describe("db", () => {
 
       const facts = dbMod.listMemories({ type: "fact" });
       expect(facts.length).toBe(1);
-      expect(facts[0].type).toBe("fact");
+      expect(facts[0]!.type).toBe("fact");
     });
 
     it("respects limit parameter", async () => {
@@ -315,8 +315,8 @@ describe("db", () => {
       );
 
       const all = dbMod.listMemories();
-      expect(all[0].id).toBe("mem_new");
-      expect(all[1].id).toBe("mem_old");
+      expect(all[0]!.id).toBe("mem_new");
+      expect(all[1]!.id).toBe("mem_old");
     });
 
     it("inserts into FTS5 table for keyword search", async () => {

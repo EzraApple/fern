@@ -1,18 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock external modules BEFORE importing
-const mockGetInstallationOctokit = vi.fn();
-
-class MockApp {
-  constructor() {
-    // Track constructor calls via the App mock
-  }
-  getInstallationOctokit = mockGetInstallationOctokit;
-}
+// Hoist mock variables so they're available in vi.mock factories
+const { mockGetInstallationOctokit } = vi.hoisted(() => ({
+  mockGetInstallationOctokit: vi.fn(),
+}));
 
 vi.mock("@octokit/app", () => ({
-  App: vi.fn().mockImplementation(function () {
-    return new MockApp();
+  App: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
+    this.getInstallationOctokit = mockGetInstallationOctokit;
   }),
 }));
 vi.mock("../config/config.js", () => ({
@@ -21,12 +16,7 @@ vi.mock("../config/config.js", () => ({
 
 import { App } from "@octokit/app";
 import { loadConfig } from "../config/config.js";
-import {
-  getOctokit,
-  createPullRequest,
-  getPRStatus,
-  resetOctokit,
-} from "./github-service.js";
+import { createPullRequest, getOctokit, getPRStatus, resetOctokit } from "./github-service.js";
 
 const mockLoadConfig = loadConfig as unknown as ReturnType<typeof vi.fn>;
 const MockAppConstructor = App as unknown as ReturnType<typeof vi.fn>;
@@ -76,7 +66,7 @@ describe("github-service", () => {
 
       expect(mockOctokit.request).toHaveBeenCalledWith(
         "POST /repos/{owner}/{repo}/pulls",
-        expect.objectContaining({ owner: "myowner", repo: "myrepo" }),
+        expect.objectContaining({ owner: "myowner", repo: "myrepo" })
       );
       expect(result.number).toBe(1);
     });
@@ -98,7 +88,7 @@ describe("github-service", () => {
 
       expect(mockOctokit.request).toHaveBeenCalledWith(
         "POST /repos/{owner}/{repo}/pulls",
-        expect.objectContaining({ owner: "org", repo: "project" }),
+        expect.objectContaining({ owner: "org", repo: "project" })
       );
     });
 
@@ -119,7 +109,7 @@ describe("github-service", () => {
 
       expect(mockOctokit.request).toHaveBeenCalledWith(
         "POST /repos/{owner}/{repo}/pulls",
-        expect.objectContaining({ owner: "user", repo: "repo" }),
+        expect.objectContaining({ owner: "user", repo: "repo" })
       );
     });
 
@@ -134,7 +124,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toThrow("Invalid GitHub URL");
     });
 
@@ -149,7 +139,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toThrow("Invalid GitHub URL");
     });
 
@@ -164,7 +154,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toThrow("Invalid repo format");
     });
 
@@ -179,7 +169,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toThrow("Invalid repo format");
     });
 
@@ -194,7 +184,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toThrow("Invalid repo format");
     });
 
@@ -209,7 +199,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toThrow("Invalid repo format");
     });
 
@@ -224,7 +214,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toThrow("Invalid repo format");
     });
   });
@@ -260,9 +250,7 @@ describe("github-service", () => {
     it("should throw when GitHub App credentials are missing", async () => {
       mockLoadConfig.mockReturnValue({});
 
-      await expect(getOctokit()).rejects.toThrow(
-        "GitHub App credentials not configured",
-      );
+      await expect(getOctokit()).rejects.toThrow("GitHub App credentials not configured");
     });
 
     it("should throw when only appId is provided", async () => {
@@ -270,9 +258,7 @@ describe("github-service", () => {
         github: { appId: "123" },
       });
 
-      await expect(getOctokit()).rejects.toThrow(
-        "GitHub App credentials not configured",
-      );
+      await expect(getOctokit()).rejects.toThrow("GitHub App credentials not configured");
     });
 
     it("should throw when privateKey is missing", async () => {
@@ -280,9 +266,7 @@ describe("github-service", () => {
         github: { appId: "123", installationId: "456" },
       });
 
-      await expect(getOctokit()).rejects.toThrow(
-        "GitHub App credentials not configured",
-      );
+      await expect(getOctokit()).rejects.toThrow("GitHub App credentials not configured");
     });
   });
 
@@ -306,17 +290,14 @@ describe("github-service", () => {
         body: "This adds a great feature",
       });
 
-      expect(mockOctokit.request).toHaveBeenCalledWith(
-        "POST /repos/{owner}/{repo}/pulls",
-        {
-          owner: "owner",
-          repo: "repo",
-          title: "Add new feature",
-          body: "This adds a great feature",
-          head: "feature-branch",
-          base: "main",
-        },
-      );
+      expect(mockOctokit.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/pulls", {
+        owner: "owner",
+        repo: "repo",
+        title: "Add new feature",
+        body: "This adds a great feature",
+        head: "feature-branch",
+        base: "main",
+      });
       expect(result).toEqual({
         url: "https://github.com/owner/repo/pull/42",
         number: 42,
@@ -346,7 +327,7 @@ describe("github-service", () => {
 
       expect(mockOctokit.request).toHaveBeenCalledWith(
         "POST /repos/{owner}/{repo}/pulls",
-        expect.objectContaining({ base: "release" }),
+        expect.objectContaining({ base: "release" })
       );
     });
 
@@ -354,9 +335,7 @@ describe("github-service", () => {
       mockLoadConfig.mockReturnValue(makeGithubConfig());
       const mockOctokit = makeMockOctokit();
       mockGetInstallationOctokit.mockResolvedValue(mockOctokit);
-      mockOctokit.request.mockRejectedValue(
-        new Error("Validation Failed"),
-      );
+      mockOctokit.request.mockRejectedValue(new Error("Validation Failed"));
 
       await expect(
         createPullRequest({
@@ -364,7 +343,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toThrow("Failed to create PR: Validation Failed");
     });
 
@@ -380,7 +359,7 @@ describe("github-service", () => {
           branch: "branch",
           title: "PR",
           body: "Body",
-        }),
+        })
       ).rejects.toBe("raw error");
     });
   });
@@ -461,15 +440,13 @@ describe("github-service", () => {
         })
         .mockResolvedValueOnce({ data: { check_runs: [] } })
         .mockResolvedValueOnce({
-          data: [
-            { user: null, state: "COMMENTED", submitted_at: null },
-          ],
+          data: [{ user: null, state: "COMMENTED", submitted_at: null }],
         });
 
       const status = await getPRStatus(1, "owner/repo");
 
-      expect(status.reviews[0].user).toBe("unknown");
-      expect(status.reviews[0].submittedAt).toBe("");
+      expect(status.reviews[0]!.user).toBe("unknown");
+      expect(status.reviews[0]!.submittedAt).toBe("");
     });
 
     it("should use the head sha from PR for check runs lookup", async () => {
@@ -488,7 +465,7 @@ describe("github-service", () => {
 
       expect(mockOctokit.request).toHaveBeenCalledWith(
         "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
-        expect.objectContaining({ ref: "specific-sha-999" }),
+        expect.objectContaining({ ref: "specific-sha-999" })
       );
     });
 
@@ -499,7 +476,7 @@ describe("github-service", () => {
       mockOctokit.request.mockRejectedValue(new Error("Not Found"));
 
       await expect(getPRStatus(999, "owner/repo")).rejects.toThrow(
-        "Failed to get PR status: Not Found",
+        "Failed to get PR status: Not Found"
       );
     });
 
@@ -528,7 +505,7 @@ describe("github-service", () => {
 
       expect(mockOctokit.request).toHaveBeenCalledWith(
         "GET /repos/{owner}/{repo}/pulls/{pull_number}",
-        expect.objectContaining({ owner: "myorg", repo: "myrepo" }),
+        expect.objectContaining({ owner: "myorg", repo: "myrepo" })
       );
     });
   });

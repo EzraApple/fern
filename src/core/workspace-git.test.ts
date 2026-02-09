@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock external modules BEFORE importing
 vi.mock("node:child_process", () => ({
@@ -13,14 +13,14 @@ vi.mock("./workspace.js", () => ({
 
 import { exec } from "node:child_process";
 import type { WorkspaceInfo } from "../types/workspace.js";
-import { updateWorkspaceBranch } from "./workspace.js";
 import {
-  createBranch,
   commitChanges,
-  pushBranch,
+  createBranch,
   getCurrentBranch,
   hasUncommittedChanges,
+  pushBranch,
 } from "./workspace-git.js";
+import { updateWorkspaceBranch } from "./workspace.js";
 
 const mockExec = exec as unknown as ReturnType<typeof vi.fn>;
 
@@ -47,32 +47,26 @@ describe("workspace-git", () => {
 
       await createBranch(workspace, "feature/new-thing");
 
-      expect(mockExec).toHaveBeenCalledWith(
-        "git checkout -b feature/new-thing",
-        { cwd: "/tmp/fern-workspaces/test-workspace" },
-      );
-      expect(updateWorkspaceBranch).toHaveBeenCalledWith(
-        "test-workspace-id",
-        "feature/new-thing",
-      );
+      expect(mockExec).toHaveBeenCalledWith("git checkout -b feature/new-thing", {
+        cwd: "/tmp/fern-workspaces/test-workspace",
+      });
+      expect(updateWorkspaceBranch).toHaveBeenCalledWith("test-workspace-id", "feature/new-thing");
     });
 
     it("should throw on git error", async () => {
       mockExec.mockRejectedValueOnce(new Error("branch already exists"));
       const workspace = makeWorkspace();
 
-      await expect(
-        createBranch(workspace, "existing-branch"),
-      ).rejects.toThrow("Failed to create branch");
+      await expect(createBranch(workspace, "existing-branch")).rejects.toThrow(
+        "Failed to create branch"
+      );
     });
 
     it("should rethrow non-Error exceptions from gitCmd", async () => {
       mockExec.mockRejectedValueOnce("string error");
       const workspace = makeWorkspace();
 
-      await expect(
-        createBranch(workspace, "some-branch"),
-      ).rejects.toBe("string error");
+      await expect(createBranch(workspace, "some-branch")).rejects.toBe("string error");
     });
   });
 
@@ -138,9 +132,9 @@ describe("workspace-git", () => {
 
       const workspace = makeWorkspace();
 
-      await expect(
-        commitChanges(workspace, "No changes"),
-      ).rejects.toThrow("Failed to commit changes: No changes to commit");
+      await expect(commitChanges(workspace, "No changes")).rejects.toThrow(
+        "Failed to commit changes: No changes to commit"
+      );
     });
 
     it("should escape double quotes in commit message", async () => {
@@ -158,7 +152,7 @@ describe("workspace-git", () => {
       await commitChanges(workspace, 'Fix "quoted" stuff');
 
       // Check that the commit command escaped the quotes
-      const commitCall = mockExec.mock.calls[4];
+      const commitCall = mockExec.mock.calls[4]!;
       expect(commitCall[0]).toBe('git commit -m "Fix \\"quoted\\" stuff"');
     });
 
@@ -192,9 +186,7 @@ describe("workspace-git", () => {
       mockExec.mockRejectedValueOnce("raw string error");
       const workspace = makeWorkspace();
 
-      await expect(
-        commitChanges(workspace, "msg"),
-      ).rejects.toBe("raw string error");
+      await expect(commitChanges(workspace, "msg")).rejects.toBe("raw string error");
     });
   });
 
@@ -205,10 +197,9 @@ describe("workspace-git", () => {
 
       await pushBranch(workspace);
 
-      expect(mockExec).toHaveBeenCalledWith(
-        "git push -u origin feature-branch",
-        { cwd: "/tmp/fern-workspaces/test-workspace" },
-      );
+      expect(mockExec).toHaveBeenCalledWith("git push -u origin feature-branch", {
+        cwd: "/tmp/fern-workspaces/test-workspace",
+      });
     });
 
     it("should push to specified remote", async () => {
@@ -217,21 +208,16 @@ describe("workspace-git", () => {
 
       await pushBranch(workspace, "upstream");
 
-      expect(mockExec).toHaveBeenCalledWith(
-        "git push -u upstream feature-branch",
-        { cwd: "/tmp/fern-workspaces/test-workspace" },
-      );
+      expect(mockExec).toHaveBeenCalledWith("git push -u upstream feature-branch", {
+        cwd: "/tmp/fern-workspaces/test-workspace",
+      });
     });
 
     it("should throw on push failure", async () => {
-      mockExec.mockRejectedValueOnce(
-        new Error("remote: Permission denied"),
-      );
+      mockExec.mockRejectedValueOnce(new Error("remote: Permission denied"));
       const workspace = makeWorkspace({ branch: "feature-branch" });
 
-      await expect(pushBranch(workspace)).rejects.toThrow(
-        "Failed to push branch",
-      );
+      await expect(pushBranch(workspace)).rejects.toThrow("Failed to push branch");
     });
 
     it("should rethrow non-Error exceptions", async () => {
@@ -252,10 +238,7 @@ describe("workspace-git", () => {
       const branch = await getCurrentBranch("/tmp/workspace");
 
       expect(branch).toBe("feature/my-branch");
-      expect(mockExec).toHaveBeenCalledWith(
-        "git branch --show-current",
-        { cwd: "/tmp/workspace" },
-      );
+      expect(mockExec).toHaveBeenCalledWith("git branch --show-current", { cwd: "/tmp/workspace" });
     });
 
     it("should return empty string when no branch (detached HEAD)", async () => {
@@ -269,9 +252,7 @@ describe("workspace-git", () => {
     it("should throw wrapped error on git command failure", async () => {
       mockExec.mockRejectedValueOnce(new Error("not a git repository"));
 
-      await expect(getCurrentBranch("/tmp/workspace")).rejects.toThrow(
-        "Git command failed",
-      );
+      await expect(getCurrentBranch("/tmp/workspace")).rejects.toThrow("Git command failed");
     });
   });
 

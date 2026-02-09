@@ -44,6 +44,7 @@ describe("createMemoryApi", () => {
         content: "User likes TypeScript",
         tags: ["tech"],
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       mockWriteMemory.mockResolvedValue(mockMemory);
 
@@ -74,6 +75,7 @@ describe("createMemoryApi", () => {
         content: "test content",
         tags: [],
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       const res = await app.request("/internal/memory/write", {
@@ -86,9 +88,7 @@ describe("createMemoryApi", () => {
       });
 
       expect(res.status).toBe(200);
-      expect(mockWriteMemory).toHaveBeenCalledWith(
-        expect.objectContaining({ tags: [] }),
-      );
+      expect(mockWriteMemory).toHaveBeenCalledWith(expect.objectContaining({ tags: [] }));
     });
 
     it("returns 400 for invalid type", async () => {
@@ -146,6 +146,7 @@ describe("createMemoryApi", () => {
           content: "test",
           tags: [],
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
 
         const res = await app.request("/internal/memory/write", {
@@ -164,9 +165,9 @@ describe("createMemoryApi", () => {
       mockSearchMemory.mockResolvedValue([
         {
           id: "result_1",
-          type: "persistent" as const,
-          content: "TypeScript is great",
-          score: 0.95,
+          source: "memory" as const,
+          text: "TypeScript is great",
+          relevanceScore: 0.95,
         },
       ]);
 
@@ -179,7 +180,7 @@ describe("createMemoryApi", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toHaveLength(1);
-      expect(body[0].content).toBe("TypeScript is great");
+      expect(body[0].text).toBe("TypeScript is great");
       expect(mockSearchMemory).toHaveBeenCalledWith("TypeScript", {
         limit: undefined,
         threadId: undefined,
@@ -235,10 +236,35 @@ describe("createMemoryApi", () => {
   describe("POST /internal/memory/read", () => {
     it("reads a chunk successfully", async () => {
       const mockChunk = {
+        id: "chunk_456",
+        threadId: "thread_123",
+        openCodeSessionId: "sess_1",
+        summary: "A greeting exchange",
         messages: [
-          { role: "user", content: "Hello" },
-          { role: "assistant", content: "Hi!" },
+          {
+            id: "msg-1",
+            sessionID: "sess_1",
+            role: "user" as const,
+            time: { created: Date.now() },
+            parts: [{ id: "p1", type: "text", text: "Hello" }],
+          },
+          {
+            id: "msg-2",
+            sessionID: "sess_1",
+            role: "assistant" as const,
+            time: { created: Date.now() },
+            parts: [{ id: "p2", type: "text", text: "Hi!" }],
+          },
         ],
+        tokenCount: 100,
+        messageCount: 2,
+        messageRange: {
+          firstMessageId: "msg-1",
+          lastMessageId: "msg-2",
+          firstTimestamp: Date.now(),
+          lastTimestamp: Date.now(),
+        },
+        createdAt: new Date().toISOString(),
       };
       mockReadChunk.mockReturnValue(mockChunk);
 

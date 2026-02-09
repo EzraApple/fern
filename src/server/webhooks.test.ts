@@ -28,8 +28,8 @@ const mockAdapter = {
 };
 
 import { Hono } from "hono";
-import { runAgentLoop } from "../core/index.js";
 import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
+import { runAgentLoop } from "../core/index.js";
 import { createWhatsAppWebhookRoutes } from "./webhooks.js";
 
 const mockRunAgentLoop = vi.mocked(runAgentLoop);
@@ -42,7 +42,7 @@ describe("createWhatsAppWebhookRoutes", () => {
     const root = new Hono();
     root.route(
       "/webhooks/whatsapp",
-      createWhatsAppWebhookRoutes(mockAdapter as unknown as WhatsAppAdapter),
+      createWhatsAppWebhookRoutes(mockAdapter as unknown as WhatsAppAdapter)
     );
     app = root;
   });
@@ -102,7 +102,7 @@ describe("createWhatsAppWebhookRoutes", () => {
     });
 
     expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({ channelUserId: "+15551234567" }),
+      expect.objectContaining({ channelUserId: "+15551234567" })
     );
   });
 

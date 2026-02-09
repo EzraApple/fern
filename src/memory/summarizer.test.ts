@@ -82,7 +82,7 @@ describe("summarizeChunk", () => {
 
     await summarizeChunk(messages, testConfig);
 
-    const userContent = mockCreate.mock.calls[0][0].messages[1].content;
+    const userContent = mockCreate.mock.calls[0]![0].messages[1].content;
     expect(userContent).toContain("[User]: What is 2+2?");
     expect(userContent).toContain("[Assistant]: It's 4.");
   });
@@ -115,7 +115,7 @@ describe("summarizeChunk", () => {
 
     await summarizeChunk(messages, testConfig);
 
-    const userContent = mockCreate.mock.calls[0][0].messages[1].content;
+    const userContent = mockCreate.mock.calls[0]![0].messages[1].content;
     expect(userContent).toContain("[Tool: echo] (completed)");
     expect(userContent).toContain("hello");
   });
@@ -203,7 +203,7 @@ describe("summarizeChunk", () => {
 
     await summarizeChunk(messages, testConfig);
 
-    const userContent = mockCreate.mock.calls[0][0].messages[1].content;
+    const userContent = mockCreate.mock.calls[0]![0].messages[1].content;
     // Input is JSON.stringify'd then sliced to 200 chars
     expect(userContent).toContain("[Tool: bash]");
     // Output is sliced to 300 chars

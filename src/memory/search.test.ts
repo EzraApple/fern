@@ -79,9 +79,9 @@ describe("search", () => {
       const results = await searchMod.searchMemory("TypeScript configuration");
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].source).toBe("archive");
-      expect(results[0].text).toContain("TypeScript");
-      expect(results[0].id).toBe("chunk_001");
+      expect(results[0]!.source).toBe("archive");
+      expect(results[0]!.text).toContain("TypeScript");
+      expect(results[0]!.id).toBe("chunk_001");
     });
 
     it("finds persistent memories via FTS5 keyword search", async () => {
@@ -100,9 +100,9 @@ describe("search", () => {
       const results = await searchMod.searchMemory("dark mode");
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].source).toBe("memory");
-      expect(results[0].text).toContain("dark mode");
-      expect(results[0].memoryType).toBe("fact");
+      expect(results[0]!.source).toBe("memory");
+      expect(results[0]!.text).toContain("dark mode");
+      expect(results[0]!.memoryType).toBe("fact");
     });
 
     it("returns results with relevance scores", async () => {
@@ -123,7 +123,7 @@ describe("search", () => {
       const results = await searchMod.searchMemory("TypeScript");
 
       expect(results.length).toBe(1);
-      expect(results[0].relevanceScore).toBeGreaterThan(0);
+      expect(results[0]!.relevanceScore).toBeGreaterThan(0);
     });
 
     it("respects limit parameter", async () => {
@@ -212,7 +212,7 @@ describe("search", () => {
       const results = await searchMod.searchMemory("Apples");
 
       for (let i = 1; i < results.length; i++) {
-        expect(results[i - 1].relevanceScore).toBeGreaterThanOrEqual(results[i].relevanceScore);
+        expect(results[i - 1]!.relevanceScore).toBeGreaterThanOrEqual(results[i]!.relevanceScore);
       }
     });
 

@@ -42,7 +42,7 @@ describe("stripMarkdown", () => {
 
   it("converts links to text (url) format", () => {
     expect(stripMarkdown("[click here](https://example.com)")).toBe(
-      "click here (https://example.com)",
+      "click here (https://example.com)"
     );
   });
 
@@ -51,7 +51,7 @@ describe("stripMarkdown", () => {
     // can match ![alt text](url), so the ! remains and the image regex never fires.
     // This documents the actual behavior of the regex ordering in stripMarkdown.
     expect(stripMarkdown("![alt text](https://example.com/img.png)")).toBe(
-      "!alt text (https://example.com/img.png)",
+      "!alt text (https://example.com/img.png)"
     );
   });
 
@@ -90,10 +90,7 @@ describe("chunkMessage", () => {
     // "Paragraph one." = 14, "Paragraph two." = 14, "Paragraph three." = 16
     // maxLength=30: "Paragraph one.\n\nParagraph two." = 30, fits. Adding third = 30+2+16=48, too big.
     const result = chunkMessage(input, 30);
-    expect(result).toEqual([
-      "Paragraph one.\n\nParagraph two.",
-      "Paragraph three.",
-    ]);
+    expect(result).toEqual(["Paragraph one.\n\nParagraph two.", "Paragraph three."]);
   });
 
   it("splits long paragraphs at sentence boundaries", () => {

@@ -68,18 +68,16 @@ describe("TwilioGateway", () => {
           to: "whatsapp:+15551234567",
           from: "whatsapp:+14155238886",
           body: "Hello",
-        }),
+        })
       ).rejects.toThrow("Twilio API error");
     });
   });
 
   describe("validateRequest", () => {
     it("calls twilio.validateRequest with the auth token", () => {
-      const result = gateway.validateRequest(
-        "signature123",
-        "https://example.com/webhook",
-        { Body: "Hello" },
-      );
+      const result = gateway.validateRequest("signature123", "https://example.com/webhook", {
+        Body: "Hello",
+      });
 
       expect(result).toBe(true);
       // biome-ignore lint/suspicious/noExplicitAny: test mock
@@ -87,7 +85,7 @@ describe("TwilioGateway", () => {
         "test_auth_token",
         "signature123",
         "https://example.com/webhook",
-        { Body: "Hello" },
+        { Body: "Hello" }
       );
     });
 

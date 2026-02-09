@@ -86,7 +86,7 @@ describe("createServer", () => {
       });
 
       expect(mockRunAgentLoop).toHaveBeenCalledWith(
-        expect.objectContaining({ sessionId: "my_session" }),
+        expect.objectContaining({ sessionId: "my_session" })
       );
     });
 
@@ -107,7 +107,7 @@ describe("createServer", () => {
       expect(mockRunAgentLoop).toHaveBeenCalledWith(
         expect.objectContaining({
           sessionId: expect.stringMatching(/^chat_\d+_[a-z0-9]+$/),
-        }),
+        })
       );
     });
 

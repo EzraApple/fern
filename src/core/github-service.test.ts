@@ -455,8 +455,8 @@ describe("github-service", () => {
 
       const status = await getPRStatus(1, "owner/repo");
 
-      expect(status.reviews[0]!.user).toBe("unknown");
-      expect(status.reviews[0]!.submittedAt).toBe("");
+      expect(status.reviews[0]?.user).toBe("unknown");
+      expect(status.reviews[0]?.submittedAt).toBe("");
     });
 
     it("should use the head sha from PR for check runs lookup", async () => {
@@ -539,9 +539,7 @@ describe("github-service", () => {
     it("should throw when credentials are missing", async () => {
       mockLoadConfig.mockReturnValue({});
 
-      await expect(getInstallationToken()).rejects.toThrow(
-        "GitHub App credentials not configured"
-      );
+      await expect(getInstallationToken()).rejects.toThrow("GitHub App credentials not configured");
     });
   });
 

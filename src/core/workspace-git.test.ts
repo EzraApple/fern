@@ -12,7 +12,7 @@ vi.mock("./workspace.js", () => ({
 }));
 vi.mock("./github-service.js", () => ({
   getAuthenticatedCloneUrl: vi.fn(() =>
-    Promise.resolve(`https://x-access-token:mock-token@github.com/test/repo.git`)
+    Promise.resolve("https://x-access-token:mock-token@github.com/test/repo.git")
   ),
 }));
 
@@ -204,10 +204,9 @@ describe("workspace-git", () => {
 
       await pushBranch(workspace);
 
-      expect(mockExec).toHaveBeenCalledWith(
-        expect.stringContaining("git remote set-url origin"),
-        { cwd: "/tmp/fern-workspaces/test-workspace" }
-      );
+      expect(mockExec).toHaveBeenCalledWith(expect.stringContaining("git remote set-url origin"), {
+        cwd: "/tmp/fern-workspaces/test-workspace",
+      });
       expect(mockExec).toHaveBeenCalledWith("git push -u origin feature-branch", {
         cwd: "/tmp/fern-workspaces/test-workspace",
       });

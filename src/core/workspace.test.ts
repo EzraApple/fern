@@ -34,8 +34,8 @@ vi.mock("../config/config.js", () => ({
   })),
 }));
 vi.mock("./github-service.js", () => ({
-  getAuthenticatedCloneUrl: vi.fn((url: string) =>
-    Promise.resolve(`https://x-access-token:mock-token@github.com/test/repo.git`)
+  getAuthenticatedCloneUrl: vi.fn((_url: string) =>
+    Promise.resolve("https://x-access-token:mock-token@github.com/test/repo.git")
   ),
 }));
 

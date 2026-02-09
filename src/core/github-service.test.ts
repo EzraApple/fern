@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hoist mock variables so they're available in vi.mock factories
-const { mockGetInstallationOctokit } = vi.hoisted(() => ({
+const { mockGetInstallationOctokit, mockAppOctokitRequest } = vi.hoisted(() => ({
   mockGetInstallationOctokit: vi.fn(),
+  mockAppOctokitRequest: vi.fn(),
 }));
 
 vi.mock("@octokit/app", () => ({
   App: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
     this.getInstallationOctokit = mockGetInstallationOctokit;
+    this.octokit = { request: mockAppOctokitRequest };
   }),
 }));
 vi.mock("../config/config.js", () => ({
@@ -16,7 +18,14 @@ vi.mock("../config/config.js", () => ({
 
 import { App } from "@octokit/app";
 import { loadConfig } from "../config/config.js";
-import { createPullRequest, getOctokit, getPRStatus, resetOctokit } from "./github-service.js";
+import {
+  createPullRequest,
+  getAuthenticatedCloneUrl,
+  getInstallationToken,
+  getOctokit,
+  getPRStatus,
+  resetOctokit,
+} from "./github-service.js";
 
 const mockLoadConfig = loadConfig as unknown as ReturnType<typeof vi.fn>;
 const MockAppConstructor = App as unknown as ReturnType<typeof vi.fn>;
@@ -40,6 +49,7 @@ function makeMockOctokit() {
 describe("github-service", () => {
   beforeEach(() => {
     mockGetInstallationOctokit.mockReset();
+    mockAppOctokitRequest.mockReset();
     mockLoadConfig.mockReset();
     MockAppConstructor.mockClear();
     resetOctokit();
@@ -506,6 +516,69 @@ describe("github-service", () => {
       expect(mockOctokit.request).toHaveBeenCalledWith(
         "GET /repos/{owner}/{repo}/pulls/{pull_number}",
         expect.objectContaining({ owner: "myorg", repo: "myrepo" })
+      );
+    });
+  });
+
+  describe("getInstallationToken", () => {
+    it("should return token from installation access token endpoint", async () => {
+      mockLoadConfig.mockReturnValue(makeGithubConfig());
+      mockAppOctokitRequest.mockResolvedValue({
+        data: { token: "ghs_mock_installation_token" },
+      });
+
+      const token = await getInstallationToken();
+
+      expect(token).toBe("ghs_mock_installation_token");
+      expect(mockAppOctokitRequest).toHaveBeenCalledWith(
+        "POST /app/installations/{installation_id}/access_tokens",
+        { installation_id: 67890 }
+      );
+    });
+
+    it("should throw when credentials are missing", async () => {
+      mockLoadConfig.mockReturnValue({});
+
+      await expect(getInstallationToken()).rejects.toThrow(
+        "GitHub App credentials not configured"
+      );
+    });
+  });
+
+  describe("getAuthenticatedCloneUrl", () => {
+    it("should return HTTPS URL with embedded token for owner/repo format", async () => {
+      mockLoadConfig.mockReturnValue(makeGithubConfig());
+      mockAppOctokitRequest.mockResolvedValue({
+        data: { token: "ghs_test_token" },
+      });
+
+      const url = await getAuthenticatedCloneUrl("myowner/myrepo");
+
+      expect(url).toBe("https://x-access-token:ghs_test_token@github.com/myowner/myrepo.git");
+    });
+
+    it("should return HTTPS URL with embedded token for full GitHub URL", async () => {
+      mockLoadConfig.mockReturnValue(makeGithubConfig());
+      mockAppOctokitRequest.mockResolvedValue({
+        data: { token: "ghs_test_token_2" },
+      });
+
+      const url = await getAuthenticatedCloneUrl("https://github.com/org/project.git");
+
+      expect(url).toBe("https://x-access-token:ghs_test_token_2@github.com/org/project.git");
+    });
+
+    it("should throw for invalid repo format", async () => {
+      mockLoadConfig.mockReturnValue(makeGithubConfig());
+
+      await expect(getAuthenticatedCloneUrl("invalid")).rejects.toThrow("Invalid repo format");
+    });
+
+    it("should throw when credentials are missing", async () => {
+      mockLoadConfig.mockReturnValue({});
+
+      await expect(getAuthenticatedCloneUrl("owner/repo")).rejects.toThrow(
+        "GitHub App credentials not configured"
       );
     });
   });

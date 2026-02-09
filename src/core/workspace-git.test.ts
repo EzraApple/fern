@@ -10,6 +10,11 @@ vi.mock("node:util", () => ({
 vi.mock("./workspace.js", () => ({
   updateWorkspaceBranch: vi.fn(),
 }));
+vi.mock("./github-service.js", () => ({
+  getAuthenticatedCloneUrl: vi.fn(() =>
+    Promise.resolve(`https://x-access-token:mock-token@github.com/test/repo.git`)
+  ),
+}));
 
 import { exec } from "node:child_process";
 import type { WorkspaceInfo } from "../types/workspace.js";
@@ -191,37 +196,53 @@ describe("workspace-git", () => {
   });
 
   describe("pushBranch", () => {
-    it("should push to origin by default", async () => {
-      mockExec.mockResolvedValueOnce({ stdout: "", stderr: "" });
+    it("should refresh remote URL and push to origin by default", async () => {
+      mockExec
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git remote set-url
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }); // git push
       const workspace = makeWorkspace({ branch: "feature-branch" });
 
       await pushBranch(workspace);
 
+      expect(mockExec).toHaveBeenCalledWith(
+        expect.stringContaining("git remote set-url origin"),
+        { cwd: "/tmp/fern-workspaces/test-workspace" }
+      );
       expect(mockExec).toHaveBeenCalledWith("git push -u origin feature-branch", {
         cwd: "/tmp/fern-workspaces/test-workspace",
       });
     });
 
     it("should push to specified remote", async () => {
-      mockExec.mockResolvedValueOnce({ stdout: "", stderr: "" });
+      mockExec
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git remote set-url
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }); // git push
       const workspace = makeWorkspace({ branch: "feature-branch" });
 
       await pushBranch(workspace, "upstream");
 
+      expect(mockExec).toHaveBeenCalledWith(
+        expect.stringContaining("git remote set-url upstream"),
+        { cwd: "/tmp/fern-workspaces/test-workspace" }
+      );
       expect(mockExec).toHaveBeenCalledWith("git push -u upstream feature-branch", {
         cwd: "/tmp/fern-workspaces/test-workspace",
       });
     });
 
     it("should throw on push failure", async () => {
-      mockExec.mockRejectedValueOnce(new Error("remote: Permission denied"));
+      mockExec
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git remote set-url
+        .mockRejectedValueOnce(new Error("remote: Permission denied")); // git push
       const workspace = makeWorkspace({ branch: "feature-branch" });
 
       await expect(pushBranch(workspace)).rejects.toThrow("Failed to push branch");
     });
 
     it("should rethrow non-Error exceptions", async () => {
-      mockExec.mockRejectedValueOnce(42);
+      mockExec
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git remote set-url
+        .mockRejectedValueOnce(42); // git push
       const workspace = makeWorkspace({ branch: "feature-branch" });
 
       await expect(pushBranch(workspace)).rejects.toBe(42);

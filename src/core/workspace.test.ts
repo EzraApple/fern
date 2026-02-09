@@ -33,6 +33,11 @@ vi.mock("../config/config.js", () => ({
     workspaces: { basePath: "/tmp/fern-workspaces" },
   })),
 }));
+vi.mock("./github-service.js", () => ({
+  getAuthenticatedCloneUrl: vi.fn((url: string) =>
+    Promise.resolve(`https://x-access-token:mock-token@github.com/test/repo.git`)
+  ),
+}));
 
 import { exec } from "node:child_process";
 import * as fs from "node:fs";

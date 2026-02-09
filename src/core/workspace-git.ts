@@ -1,6 +1,7 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { GitCommit, WorkspaceInfo } from "../types/workspace.js";
+import { getAuthenticatedCloneUrl } from "./github-service.js";
 import { updateWorkspaceBranch } from "./workspace.js";
 
 const execPromise = promisify(exec);
@@ -103,6 +104,10 @@ export async function pushBranch(workspace: WorkspaceInfo, remote = "origin"): P
   );
 
   try {
+    // Refresh remote URL with a fresh GitHub App token (tokens expire ~1hr)
+    const freshUrl = await getAuthenticatedCloneUrl(workspace.repoUrl);
+    await gitCmd(workspace.path, `remote set-url ${remote} "${freshUrl}"`);
+
     await gitCmd(workspace.path, `push -u ${remote} ${workspace.branch}`);
 
     console.info(`[Workspace] Pushed branch ${workspace.branch}`);

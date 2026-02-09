@@ -35,7 +35,8 @@ export interface CreatePRParams {
   base?: string; // Default: main
 }
 
-// Cached Octokit instance
+// Cached instances
+let appInstance: App | null = null;
 // biome-ignore lint/suspicious/noExplicitAny: Octokit type from @octokit/app is compatible but has different signature
 let octokitInstance: any = null;
 
@@ -43,7 +44,7 @@ let octokitInstance: any = null;
  * Parse repository URL or owner/repo string into owner and repo name
  */
 function parseRepo(repoInput: string): { owner: string; repo: string } {
-  // Handle full GitHub URLs
+  // Handle full GitHub URLs (strip any embedded credentials)
   if (repoInput.startsWith("http://") || repoInput.startsWith("https://")) {
     const match = repoInput.match(/github\.com\/([^/]+)\/([^/]+?)(\.git)?$/);
     if (!match || !match[1] || !match[2]) {
@@ -62,39 +63,73 @@ function parseRepo(repoInput: string): { owner: string; repo: string } {
 }
 
 /**
- * Get authenticated Octokit instance
- * Uses GitHub App if configured, otherwise throws error
+ * Get or create the GitHub App instance.
+ * Throws if credentials are not configured.
+ */
+function getAppAndInstallationId(): { app: App; installationId: number } {
+  const config = loadConfig();
+
+  if (!config.github?.appId || !config.github?.privateKey || !config.github?.installationId) {
+    throw new Error(
+      "GitHub App credentials not configured. Please set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID in .env"
+    );
+  }
+
+  if (!appInstance) {
+    appInstance = new App({
+      appId: config.github.appId,
+      privateKey: config.github.privateKey,
+    });
+  }
+
+  return {
+    app: appInstance,
+    installationId: Number.parseInt(config.github.installationId, 10),
+  };
+}
+
+/**
+ * Get authenticated Octokit instance (for API calls like PR creation).
  */
 // biome-ignore lint/suspicious/noExplicitAny: Octokit type from @octokit/app is compatible but has different signature
 export async function getOctokit(): Promise<any> {
-  // Return cached instance if available
   if (octokitInstance) {
     return octokitInstance;
   }
 
-  const config = loadConfig();
+  const { app, installationId } = getAppAndInstallationId();
 
-  // Check for GitHub App credentials
-  if (config.github?.appId && config.github?.privateKey && config.github?.installationId) {
-    console.info("[GitHub] Authenticating with GitHub App...");
+  console.info("[GitHub] Authenticating with GitHub App...");
+  // biome-ignore lint/suspicious/noExplicitAny: Octokit instance from @octokit/app
+  octokitInstance = (await app.getInstallationOctokit(installationId)) as any;
+  console.info("[GitHub] Authenticated with GitHub App");
 
-    const app = new App({
-      appId: config.github.appId,
-      privateKey: config.github.privateKey,
-    });
+  return octokitInstance;
+}
 
-    // Get installation-scoped Octokit
-    const installationId = Number.parseInt(config.github.installationId, 10);
-    // biome-ignore lint/suspicious/noExplicitAny: Octokit instance from @octokit/app
-    octokitInstance = (await app.getInstallationOctokit(installationId)) as any;
+/**
+ * Get a fresh installation access token for git operations (clone, push).
+ * Tokens are short-lived (~1 hour) so this should be called close to when it's needed.
+ */
+export async function getInstallationToken(): Promise<string> {
+  const { app, installationId } = getAppAndInstallationId();
 
-    console.info("[GitHub] Authenticated with GitHub App");
-    return octokitInstance;
-  }
-
-  throw new Error(
-    "GitHub App credentials not configured. Please set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID in .env"
+  const response = await app.octokit.request(
+    "POST /app/installations/{installation_id}/access_tokens",
+    { installation_id: installationId }
   );
+
+  return response.data.token;
+}
+
+/**
+ * Build an HTTPS clone/push URL authenticated with the GitHub App installation token.
+ * Accepts any repo format: "owner/repo", full GitHub URL, etc.
+ */
+export async function getAuthenticatedCloneUrl(repoUrl: string): Promise<string> {
+  const { owner, repo } = parseRepo(repoUrl);
+  const token = await getInstallationToken();
+  return `https://x-access-token:${token}@github.com/${owner}/${repo}.git`;
 }
 
 /**
@@ -208,4 +243,5 @@ export async function getPRStatus(prNumber: number, repoInput: string): Promise<
  */
 export function resetOctokit(): void {
   octokitInstance = null;
+  appInstance = null;
 }

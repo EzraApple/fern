@@ -212,7 +212,8 @@ describe("search", () => {
       const results = await searchMod.searchMemory("Apples");
 
       for (let i = 1; i < results.length; i++) {
-        expect(results[i - 1]?.relevanceScore).toBeGreaterThanOrEqual(results[i]?.relevanceScore);
+        // biome-ignore lint/style/noNonNullAssertion: index is within bounds from loop
+        expect(results[i - 1]!.relevanceScore).toBeGreaterThanOrEqual(results[i]!.relevanceScore);
       }
     });
 

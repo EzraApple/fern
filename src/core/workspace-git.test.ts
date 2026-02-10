@@ -172,7 +172,7 @@ describe("workspace-git", () => {
       await commitChanges(workspace, 'Fix "quoted" stuff');
 
       // Message is passed as a raw arg — no escaping needed with execFile
-      const commitCall = mockExecFile.mock.calls[4];
+      const commitCall = mockExecFile.mock.calls[4] as unknown[];
       expect(commitCall[0]).toBe("git");
       expect(commitCall[1]).toEqual(["commit", "-m", 'Fix "quoted" stuff']);
     });

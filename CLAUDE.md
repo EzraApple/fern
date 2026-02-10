@@ -118,10 +118,13 @@ Tools are auto-discovered by OpenCode at startup (no registry needed).
 - Thread-based session mapping for conversation continuity across messages
 
 ### System Prompt
+- **`src/core/prompt.ts` is the single source of truth** for prompt composition (not `opencode-service.ts`)
 - Base prompt in `config/SYSTEM_PROMPT.md` with `{{TOOLS}}` and `{{CHANNEL_CONTEXT}}` placeholders
 - Tool descriptions auto-generated from registry at runtime (never hardcoded)
-- Channel-specific prompts injected based on `channelName` in `AgentInput`
+- Channel-specific prompts defined in `CHANNEL_PROMPTS` record in `prompt.ts` (whatsapp, webchat, scheduler)
+- `buildSystemPrompt()` loads base prompt, replaces placeholders, injects channel context
 - Prompt loaded once and cached via `loadBasePrompt()`
+- Self-improvement detection is pattern-based (intent, not exact phrasing) with context-gated confirmation
 
 ### Channel Adapter
 - Adapters implement `ChannelAdapter` interface from `src/channels/types.ts`

@@ -111,6 +111,27 @@ describe("prompt", () => {
     });
   });
 
+  describe("getChannelPrompt — scheduler", () => {
+    it("should return scheduler prompt for 'scheduler' channel", async () => {
+      mockReadFileSync.mockReturnValue("");
+      const { getChannelPrompt } = await import("./prompt.js");
+
+      const result = getChannelPrompt("scheduler");
+      expect(result).toContain("Scheduler");
+      expect(result).toContain("autonomous");
+      expect(result).toContain("send_message");
+    });
+
+    it("should include user ID context for scheduler channel", async () => {
+      mockReadFileSync.mockReturnValue("");
+      const { getChannelPrompt } = await import("./prompt.js");
+
+      const result = getChannelPrompt("scheduler", "job_abc123");
+      expect(result).toContain("Scheduler");
+      expect(result).toContain("job_abc123");
+    });
+  });
+
   describe("buildSystemPrompt", () => {
     it("should replace {{TOOLS}} and {{CHANNEL_CONTEXT}} placeholders", async () => {
       mockReadFileSync.mockReturnValue("Tools:\n{{TOOLS}}\n\nChannel:\n{{CHANNEL_CONTEXT}}");
@@ -150,6 +171,17 @@ describe("prompt", () => {
       const result = buildSystemPrompt([]);
 
       expect(result).toBe("|");
+    });
+
+    it("should inject scheduler channel context when channelName is 'scheduler'", async () => {
+      mockReadFileSync.mockReturnValue("{{TOOLS}}\n{{CHANNEL_CONTEXT}}");
+      const { buildSystemPrompt } = await import("./prompt.js");
+
+      const result = buildSystemPrompt(["echo"], "scheduler");
+
+      expect(result).toContain("Scheduler");
+      expect(result).toContain("autonomous");
+      expect(result).not.toContain("{{CHANNEL_CONTEXT}}");
     });
   });
 });

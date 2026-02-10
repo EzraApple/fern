@@ -79,18 +79,28 @@ class WhatsAppAdapter implements ChannelAdapter {
 
 ## Channel Prompts
 
-Each channel has a "channel prompt" injected into the system context. These are stored in `config/channel-prompts.md` and injected based on the `channelName` in `AgentInput`:
+Each channel has a "channel prompt" injected into the system context. These are defined in the `CHANNEL_PROMPTS` record in `src/core/prompt.ts` and injected based on the `channelName` in `AgentInput`:
 
 ```typescript
-const whatsappPrompt = `
-Channel: whatsapp
-Tone: Warm, conversational, plain language
-Formatting: Plain text only - no markdown rendering
-Limits: Prefer shorter messages, emojis display well
-`;
+// src/core/prompt.ts
+const CHANNEL_PROMPTS: Record<string, string> = {
+  whatsapp: `## Channel: WhatsApp
+- plain text only, no markdown
+- keep messages short, a few sentences max
+- lead with the key point, expand only if asked`,
+
+  webchat: `## Channel: WebChat
+Tone: Professional but approachable.
+Formatting: Full markdown supported, including code blocks and tables.`,
+
+  scheduler: `## Channel: Scheduler
+- This is an autonomous scheduled execution. No live user is in this session.
+- Execute the prompt fully. Do not wait for interactive responses.
+- If you need to reach a person, use send_message with the channel and user ID specified in the prompt.`,
+};
 ```
 
-The `{{CHANNEL_CONTEXT}}` placeholder in `config/SYSTEM_PROMPT.md` is replaced with the channel-specific prompt at runtime.
+The `{{CHANNEL_CONTEXT}}` placeholder in `config/SYSTEM_PROMPT.md` is replaced with the channel-specific prompt at runtime via `buildSystemPrompt()` in `src/core/prompt.ts`.
 
 ## Output Formatting
 
@@ -133,7 +143,7 @@ For channels with length limits, messages are chunked at natural break points (p
 3. Add a gateway wrapper for the channel's API in `gateway.ts`
 4. Add webhook route in `src/server/webhooks.ts` (if webhook-based)
 5. Register the adapter in `src/index.ts` during initialization
-6. Add a channel prompt in `config/channel-prompts.md`
+6. Add a channel prompt entry in `src/core/prompt.ts` (`CHANNEL_PROMPTS` record)
 7. Add tests for adapter and gateway
 
 ## Anti-Patterns

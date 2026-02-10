@@ -182,7 +182,7 @@ This gives the agent "perfect recall" — search summaries for relevant history,
 
 **Unified Interface**: Adapters implement the `ChannelAdapter` interface. Core doesn't know about WhatsApp specifics—it just receives messages and sends responses.
 
-**Channel Context**: The channel name and a "channel prompt" get injected into system context (e.g., `Channel: whatsapp | Tone: warm, conversational`). The agent naturally adapts without the core abstraction changing.
+**Channel Context**: Channel-specific prompts are defined in `src/core/prompt.ts` (`CHANNEL_PROMPTS` record) and injected into the system prompt via the `{{CHANNEL_CONTEXT}}` placeholder at runtime. Current channels: `whatsapp`, `webchat`, `scheduler`. The agent naturally adapts without the core abstraction changing.
 
 **Current Implementation**: WhatsApp via Twilio (webhook-based). Additional adapters can be added by implementing the `ChannelAdapter` interface.
 

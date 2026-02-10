@@ -83,30 +83,9 @@ function findAvailablePort(): number {
 }
 
 /**
- * Load Fern's system prompt from config
- */
-function loadFernPrompt(): string {
-  const promptPath = path.join(process.cwd(), "config", "SYSTEM_PROMPT.md");
-
-  try {
-    if (fs.existsSync(promptPath)) {
-      const content = fs.readFileSync(promptPath, "utf-8");
-      return content;
-    }
-  } catch (error) {
-    console.warn("[OpenCode] Failed to load SYSTEM_PROMPT.md:", error);
-  }
-
-  // Fallback prompt
-  return "You are Fern, a helpful AI assistant.";
-}
-
-/**
  * OpenCode configuration for Fern
  */
 function getOpenCodeConfig() {
-  const fernPrompt = loadFernPrompt();
-
   return {
     // Auto-share sessions for debugging
     share: "auto" as const,
@@ -123,11 +102,12 @@ function getOpenCodeConfig() {
     // Default agent
     default_agent: "fern",
 
-    // Custom agent definition
+    // Custom agent definition — prompt.ts is the source of truth for prompt
+    // composition; this is just a fallback for the OpenCode agent config.
     agent: {
       fern: {
         description: "Fern AI assistant with multi-channel support",
-        prompt: fernPrompt,
+        prompt: "You are Fern, a helpful AI assistant.",
       },
     },
 

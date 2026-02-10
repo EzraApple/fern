@@ -28,6 +28,12 @@ const CHANNEL_PROMPTS: Record<string, string> = {
   webchat: `## Channel: WebChat
 Tone: Professional but approachable.
 Formatting: Full markdown supported, including code blocks and tables.`,
+
+  scheduler: `## Channel: Scheduler
+- This is an autonomous scheduled execution. No live user is in this session.
+- Execute the prompt fully. Do not wait for interactive responses.
+- If you need to reach a person, use \`send_message\` with the channel and user ID specified in the prompt.
+- If required details are missing (e.g., no phone number or channel), complete gracefully and report what was missing via \`send_message\` if a contact channel was specified in the prompt.`,
 };
 
 /** Get channel-specific prompt addition */

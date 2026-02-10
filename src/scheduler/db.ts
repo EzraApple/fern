@@ -195,7 +195,9 @@ export function recoverStaleJobs(): number {
   const d = getDb();
   const now = new Date().toISOString();
   const result = d
-    .prepare("UPDATE scheduled_jobs SET status = 'pending', updated_at = ? WHERE status = 'running'")
+    .prepare(
+      "UPDATE scheduled_jobs SET status = 'pending', updated_at = ? WHERE status = 'running'"
+    )
     .run(now);
   return result.changes;
 }

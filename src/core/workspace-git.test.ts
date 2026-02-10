@@ -52,11 +52,9 @@ describe("workspace-git", () => {
 
       await createBranch(workspace, "feature/new-thing");
 
-      expect(mockExecFile).toHaveBeenCalledWith(
-        "git",
-        ["checkout", "-b", "feature/new-thing"],
-        { cwd: "/tmp/fern-workspaces/test-workspace" }
-      );
+      expect(mockExecFile).toHaveBeenCalledWith("git", ["checkout", "-b", "feature/new-thing"], {
+        cwd: "/tmp/fern-workspaces/test-workspace",
+      });
       expect(updateWorkspaceBranch).toHaveBeenCalledWith("test-workspace-id", "feature/new-thing");
     });
 
@@ -174,7 +172,7 @@ describe("workspace-git", () => {
       await commitChanges(workspace, 'Fix "quoted" stuff');
 
       // Message is passed as a raw arg — no escaping needed with execFile
-      const commitCall = mockExecFile.mock.calls[4]!;
+      const commitCall = mockExecFile.mock.calls[4];
       expect(commitCall[0]).toBe("git");
       expect(commitCall[1]).toEqual(["commit", "-m", 'Fix "quoted" stuff']);
     });
@@ -213,14 +211,17 @@ describe("workspace-git", () => {
 
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
-        ["remote", "set-url", "origin", "https://x-access-token:mock-token@github.com/test/repo.git"],
+        [
+          "remote",
+          "set-url",
+          "origin",
+          "https://x-access-token:mock-token@github.com/test/repo.git",
+        ],
         { cwd: "/tmp/fern-workspaces/test-workspace" }
       );
-      expect(mockExecFile).toHaveBeenCalledWith(
-        "git",
-        ["push", "-u", "origin", "feature-branch"],
-        { cwd: "/tmp/fern-workspaces/test-workspace" }
-      );
+      expect(mockExecFile).toHaveBeenCalledWith("git", ["push", "-u", "origin", "feature-branch"], {
+        cwd: "/tmp/fern-workspaces/test-workspace",
+      });
     });
 
     it("should push to specified remote", async () => {
@@ -272,11 +273,9 @@ describe("workspace-git", () => {
       const branch = await getCurrentBranch("/tmp/workspace");
 
       expect(branch).toBe("feature/my-branch");
-      expect(mockExecFile).toHaveBeenCalledWith(
-        "git",
-        ["branch", "--show-current"],
-        { cwd: "/tmp/workspace" }
-      );
+      expect(mockExecFile).toHaveBeenCalledWith("git", ["branch", "--show-current"], {
+        cwd: "/tmp/workspace",
+      });
     });
 
     it("should return empty string when no branch (detached HEAD)", async () => {

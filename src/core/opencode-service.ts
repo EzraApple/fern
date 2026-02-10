@@ -314,9 +314,7 @@ export class AgentTimeoutError extends Error {
   public readonly elapsedMs: number;
 
   constructor(sessionId: string, elapsedMs: number) {
-    super(
-      `Agent turn timed out after ${Math.round(elapsedMs / 1000)}s (session: ${sessionId})`
-    );
+    super(`Agent turn timed out after ${Math.round(elapsedMs / 1000)}s (session: ${sessionId})`);
     this.name = "AgentTimeoutError";
     this.sessionId = sessionId;
     this.elapsedMs = elapsedMs;

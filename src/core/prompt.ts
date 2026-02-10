@@ -43,7 +43,7 @@ export function getChannelPrompt(channelName: string, channelUserId?: string): s
 export function buildSystemPrompt(
   toolNames: string[],
   channelName?: string,
-  channelUserId?: string,
+  channelUserId?: string
 ): string {
   const base = loadBasePrompt();
   const toolDescriptions = generateToolDescriptions(toolNames);

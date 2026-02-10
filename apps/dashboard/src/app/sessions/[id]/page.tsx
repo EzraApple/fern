@@ -23,10 +23,7 @@ export default function SessionDetailPage() {
           <ArrowLeft size={18} />
         </Link>
         <div className="min-w-0">
-          <h1
-            className="text-lg font-bold truncate"
-            style={{ color: "var(--text-primary)" }}
-          >
+          <h1 className="text-lg font-bold truncate" style={{ color: "var(--text-primary)" }}>
             {session?.title || id}
           </h1>
           {session?.title && (
@@ -38,12 +35,8 @@ export default function SessionDetailPage() {
       </div>
 
       {/* Chat */}
-      {isLoading && (
-        <p style={{ color: "var(--text-muted)" }}>Loading messages...</p>
-      )}
-      {error && (
-        <p style={{ color: "var(--error)" }}>Failed to load messages.</p>
-      )}
+      {isLoading && <p style={{ color: "var(--text-muted)" }}>Loading messages...</p>}
+      {error && <p style={{ color: "var(--error)" }}>Failed to load messages.</p>}
       {messages && <ChatView messages={messages} />}
     </div>
   );

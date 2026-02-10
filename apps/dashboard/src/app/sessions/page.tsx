@@ -12,12 +12,8 @@ export default function SessionsPage() {
         Sessions
       </h1>
 
-      {isLoading && (
-        <p style={{ color: "var(--text-muted)" }}>Loading sessions...</p>
-      )}
-      {error && (
-        <p style={{ color: "var(--error)" }}>Failed to load sessions.</p>
-      )}
+      {isLoading && <p style={{ color: "var(--text-muted)" }}>Loading sessions...</p>}
+      {error && <p style={{ color: "var(--error)" }}>Failed to load sessions.</p>}
       {sessions && <SessionList sessions={sessions} />}
     </div>
   );

@@ -1,9 +1,12 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
+import type { ChannelAdapter } from "../channels/types.js";
 import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
 import { runAgentLoop } from "../core/index.js";
+import { createChannelApi } from "./channel-api.js";
 import { createMemoryApi } from "./memory-api.js";
+import { createSchedulerApi } from "./scheduler-api.js";
 import { createWhatsAppWebhookRoutes } from "./webhooks.js";
 
 const ChatInputSchema = z.object({
@@ -13,6 +16,7 @@ const ChatInputSchema = z.object({
 
 export interface ServerOptions {
   whatsappAdapter?: WhatsAppAdapter;
+  channelAdapters?: Map<string, ChannelAdapter>;
 }
 
 export function createServer(options?: ServerOptions) {
@@ -65,6 +69,13 @@ export function createServer(options?: ServerOptions) {
 
   // Mount internal memory API
   app.route("/internal/memory", createMemoryApi());
+
+  // Mount internal channel API (for send_message tool)
+  const adapters = options?.channelAdapters ?? new Map<string, ChannelAdapter>();
+  app.route("/internal/channel", createChannelApi(adapters));
+
+  // Mount internal scheduler API
+  app.route("/internal/scheduler", createSchedulerApi());
 
   // Mount WhatsApp webhook if adapter is available
   if (options?.whatsappAdapter) {

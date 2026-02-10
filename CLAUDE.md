@@ -10,12 +10,13 @@ A self-improving headless AI agent with multi-channel support (Telegram, WhatsAp
 - Agent loop: message → OpenCode SDK → tool execution → response
 - Session storage: OpenCode file-based storage in `~/.local/share/opencode/storage/`
 - HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`)
-- Tools: `echo`, `time` + 6 GitHub tools + 3 memory tools + built-in coding tools (read, edit, write, bash, glob, grep)
+- Tools: `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + `send_message` + built-in coding tools (read, edit, write, bash, glob, grep)
 - WhatsApp channel via Twilio (webhook-based)
 - Dynamic system prompt from `config/SYSTEM_PROMPT.md` with self-improvement workflow
 - OpenCode embedded server (port 4096-4300)
 - **Phase 2: Self-improvement loop** - Agent can clone repos, modify code, run tests, create PRs via GitHub App
 - **Phase 3: Memory system** - SQLite + sqlite-vec + OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` tool for facts/preferences/learnings. Hybrid vector + FTS5 search. Internal HTTP API proxies DB operations for OpenCode tool compatibility.
+- **Phase 5: Scheduling** - SQLite job queue in existing memory DB. `schedule` tool creates one-shot or recurring (cron) jobs. Each job is a prompt that fires a fresh agent session — agent has full autonomy to decide what tools to use and what channels to message. `send_message` tool enables proactive outbound messaging to any channel. Background loop polls every 60s.
 
 ### Next Up
 - Observability (tool execution logging, session metadata)
@@ -57,8 +58,18 @@ pnpm run memory:wipe  # Wipe all archived memories (dev utility)
 | `src/memory/tokenizer.ts` | Token estimation from OpenCode messages |
 | `src/memory/config.ts` | Memory configuration (DB path, embedding model, thresholds) |
 | `src/memory/types.ts` | ArchiveChunk, PersistentMemory, UnifiedSearchResult, etc. |
-| `src/server/server.ts` | HTTP routes (includes internal memory API) |
+| `src/scheduler/types.ts` | ScheduledJob, CreateJobInput, SchedulerConfig, JobStatus, JobType |
+| `src/scheduler/config.ts` | Scheduler config with env var overrides (enabled, poll interval, concurrency) |
+| `src/scheduler/db.ts` | Scheduler DB schema + CRUD on `scheduled_jobs` table in memory DB |
+| `src/scheduler/loop.ts` | Background setInterval, PQueue concurrency, job execution via runAgentLoop |
+| `src/scheduler/index.ts` | Public exports: initScheduler, stopScheduler |
+| `src/.opencode/tool/schedule.ts` | `schedule` tool — create one-shot or recurring jobs |
+| `src/.opencode/tool/schedule-manage.ts` | `schedule_list` and `schedule_cancel` tools |
+| `src/.opencode/tool/send-message.ts` | `send_message` tool — proactive outbound messaging to any channel |
+| `src/server/server.ts` | HTTP routes (includes internal memory, scheduler, and channel APIs) |
 | `src/server/memory-api.ts` | Internal memory API endpoints (write, search, read, delete) |
+| `src/server/scheduler-api.ts` | Internal scheduler API endpoints (create, list, get, cancel) |
+| `src/server/channel-api.ts` | Internal channel send API (adapter lookup + dispatch) |
 | `src/server/webhooks.ts` | Twilio WhatsApp webhook route |
 | `src/config/config.ts` | Config loading (includes GitHub App credentials) |
 | `src/core/prompt.ts` | System prompt loading, tool injection, channel prompts |
@@ -141,6 +152,16 @@ Tools are auto-discovered by OpenCode at startup (no registry needed).
 - Branch protection enforced (PR-only merges to main)
 - All operations validated and errors surfaced to agent for handling
 
+### Scheduling System (Phase 5)
+- **Storage**: SQLite `scheduled_jobs` table in existing `~/.fern/memory/fern.db` (shared with memory system)
+- **Job model**: Each job stores a self-contained prompt. When fired, a fresh agent session runs with that prompt — agent has full autonomy to decide what tools to use and what channels to message.
+- **Types**: `one_shot` (single execution) and `recurring` (cron-based). Statuses: `pending → running → completed|failed|cancelled`
+- **Scheduler loop**: Background `setInterval` polls every 60s (configurable via `FERN_SCHEDULER_POLL_INTERVAL_MS`). PQueue limits concurrency (default: 3). First tick runs immediately on startup to catch overdue jobs.
+- **Cron**: `cron-parser` v5 (`CronExpressionParser.parse()`) for recurring jobs. After each execution, next cron time computed and job reset to `pending`.
+- **HTTP proxy pattern**: Same as memory — OpenCode tools call internal API (`/internal/scheduler/*`) via `fetch()` because OpenCode's sandboxed runtime can't load native modules.
+- **send_message tool**: Enables proactive outbound messaging to any channel from any session. Calls `/internal/channel/send` which looks up adapter from registry.
+- **Config via env vars**: `FERN_SCHEDULER_ENABLED`, `FERN_SCHEDULER_POLL_INTERVAL_MS`, `FERN_SCHEDULER_MAX_CONCURRENT`
+
 ## Reference Projects
 
 These were used for inspiration (in `/Users/ezraapple/Projects/`):
@@ -193,7 +214,7 @@ fern/
 │   ├── server/         # HTTP server
 │   ├── channels/       # Channel adapters (WhatsApp via Twilio)
 │   ├── memory/         # Async archival layer (observer, storage, search, summarizer)
-│   └── scheduler/      # Cron system (TODO)
+│   └── scheduler/      # Job scheduling (types, config, db, loop)
 ├── config/             # Config files
 ├── agent-docs/         # AI development guidance
 ├── ARCHITECTURE.md     # System design

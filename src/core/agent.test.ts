@@ -81,7 +81,11 @@ describe("agent", () => {
       await runAgentLoop(defaultInput);
 
       expect(mockListTools).toHaveBeenCalled();
-      expect(mockBuildSystemPrompt).toHaveBeenCalledWith(["echo", "time", "bash"], "whatsapp");
+      expect(mockBuildSystemPrompt).toHaveBeenCalledWith(
+        ["echo", "time", "bash"],
+        "whatsapp",
+        undefined,
+      );
     });
 
     it("should subscribe to events for the session", async () => {
@@ -218,7 +222,7 @@ describe("agent", () => {
 
       await runAgentLoop(inputNoChannel);
 
-      expect(mockBuildSystemPrompt).toHaveBeenCalledWith(["echo", "time", "bash"], undefined);
+      expect(mockBuildSystemPrompt).toHaveBeenCalledWith(["echo", "time", "bash"], undefined, undefined);
     });
 
     it("should handle empty response from getLastResponse", async () => {

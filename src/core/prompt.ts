@@ -31,15 +31,23 @@ Formatting: Full markdown supported, including code blocks and tables.`,
 };
 
 /** Get channel-specific prompt addition */
-export function getChannelPrompt(channelName: string): string {
-  return CHANNEL_PROMPTS[channelName] ?? "";
+export function getChannelPrompt(channelName: string, channelUserId?: string): string {
+  let prompt = CHANNEL_PROMPTS[channelName] ?? "";
+  if (channelUserId) {
+    prompt += `\n\n## Current User\n- Channel: ${channelName}\n- User ID: ${channelUserId}`;
+  }
+  return prompt;
 }
 
 /** Assemble the full system prompt with tools and channel context */
-export function buildSystemPrompt(toolNames: string[], channelName?: string): string {
+export function buildSystemPrompt(
+  toolNames: string[],
+  channelName?: string,
+  channelUserId?: string,
+): string {
   const base = loadBasePrompt();
   const toolDescriptions = generateToolDescriptions(toolNames);
-  const channelContext = channelName ? getChannelPrompt(channelName) : "";
+  const channelContext = channelName ? getChannelPrompt(channelName, channelUserId) : "";
 
   return base.replace("{{TOOLS}}", toolDescriptions).replace("{{CHANNEL_CONTEXT}}", channelContext);
 }

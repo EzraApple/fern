@@ -18,7 +18,7 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
 
   // 2. Build system prompt with tool list and channel context
   const tools = await opencodeService.listTools();
-  const systemPrompt = buildSystemPrompt(tools, input.channelName);
+  const systemPrompt = buildSystemPrompt(tools, input.channelName, input.channelUserId);
 
   // 3. Subscribe to events for progress tracking
   const toolCalls: ToolCallRecord[] = [];

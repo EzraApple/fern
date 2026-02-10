@@ -303,10 +303,14 @@ Polish and production-readiness.
 - [ ] Observability UI
 
 ### Phase 5: Scheduling
-- [ ] Job queue storage
-- [ ] schedule tool
-- [ ] Scheduler loop
-- [ ] Cron expression support
+- [x] Job queue storage (SQLite `scheduled_jobs` table in existing memory DB)
+- [x] `schedule` tool (create jobs with scheduledAt, delayMs, or cronExpr)
+- [x] `schedule_list` and `schedule_cancel` tools
+- [x] `send_message` tool (proactive channel messaging from any session)
+- [x] Scheduler loop (background `setInterval`, PQueue concurrency)
+- [x] Cron expression support (`cron-parser` v5)
+- [x] Internal HTTP APIs (`/internal/scheduler/*`, `/internal/channel/send`)
+- [x] CI: parallel `test-scheduler` job
 
 ### Phase 6: Tool Enhancements
 - [ ] Read/write classification

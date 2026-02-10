@@ -225,32 +225,26 @@ const githubPrStatus = {
 
 Special rules when operating on the agent's own repository.
 
-**Implementation**: Documented in `config/SYSTEM_PROMPT.md`
+**Implementation**: Documented in `config/SYSTEM_PROMPT.md`, composed at runtime by `src/core/prompt.ts`
 
 The self-repo URL (`https://github.com/EzraApple/fern`) is embedded in the system prompt rather than .env, since the agent will eventually manage multiple repos.
 
+**Intent detection** is pattern-based, not keyword-based. The system prompt instructs the agent to recognize self-improvement opportunities by intent — references to "your code", feature requests for capabilities it doesn't have, bug reports about its own behavior, etc.
+
+**Confirmation is context-gated:**
+- **Clear intent** (request obviously targets Fern): proceed with PR workflow directly
+- **Likely but ambiguous** (could be Fern or external): ask "Want me to submit a PR for that?"
+- **Scheduler jobs**: no confirmation, follow the scheduled prompt's intent directly
+
+The PR workflow itself (clone → branch → modify → test → commit → push → PR) and safety rules are unchanged:
+
 ```markdown
-## Self-Improvement Workflow
-
-When the user asks you to modify your own codebase (https://github.com/EzraApple/fern):
-
-1. **Clone**: Use `github_clone` to create an isolated workspace
-2. **Branch**: Use `github_branch` to create a feature branch (e.g., `fern/add-feature-name`)
-3. **Modify**: Use `read`, `write`, `edit` tools to make changes (all confined to workspace)
-4. **Test**: Use `bash` to run tests in the workspace (e.g., `pnpm run lint && pnpm run tsc`)
-5. **Commit**: Use `github_commit` with a clear commit message
-6. **Push**: Use `github_push` to push the branch
-7. **PR**: Use `github_pr` to create a pull request with detailed description
-
-**CRITICAL SAFETY RULES:**
+**Safety rules:**
 - NEVER modify files outside the workspace
 - ALWAYS run tests before creating a PR
 - NEVER push directly to main branch (branch protection enforces this)
 - ALWAYS use PR workflow for self-modifications
 - Include clear description of what changed and why in PR body
-
-**Self-Repo Detection:**
-When working on https://github.com/EzraApple/fern, this is YOUR codebase. Be extra careful and thorough with testing.
 ```
 
 **Branch protection** is configured on GitHub (main branch requires PRs and CI checks), so direct pushes to main are blocked at the repository level.

@@ -280,5 +280,38 @@ describe("agent", () => {
       expect(result.toolCalls?.[1]?.tool).toBe("time");
       expect(result.toolCalls?.[2]?.tool).toBe("bash");
     });
+
+    it("should pass channelName to buildSystemPrompt for scheduler", async () => {
+      const schedulerInput: AgentInput = {
+        sessionId: "scheduler_job-123",
+        message: "Run daily cleanup",
+        channelName: "scheduler",
+      };
+
+      await runAgentLoop(schedulerInput);
+
+      expect(mockBuildSystemPrompt).toHaveBeenCalledWith(
+        ["echo", "time", "bash"],
+        "scheduler",
+        undefined
+      );
+    });
+
+    it("should pass channelUserId when provided", async () => {
+      const inputWithUser: AgentInput = {
+        sessionId: "whatsapp_+1234567890",
+        message: "Hello",
+        channelName: "whatsapp",
+        channelUserId: "+1234567890",
+      };
+
+      await runAgentLoop(inputWithUser);
+
+      expect(mockBuildSystemPrompt).toHaveBeenCalledWith(
+        ["echo", "time", "bash"],
+        "whatsapp",
+        "+1234567890"
+      );
+    });
   });
 });

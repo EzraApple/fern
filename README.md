@@ -17,7 +17,7 @@ All core phases complete (MVP, Self-Improvement, Memory, Observability, Scheduli
 - **Tools**: `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + `send_message` + built-in coding tools (read, edit, write, bash, glob, grep)
 - **HTTP API**: Hono server with `/health`, `/chat`, `/webhooks/whatsapp`, and `/api/*` dashboard endpoints
 - **WhatsApp Channel**: Twilio-based WhatsApp integration with webhook
-- **Dynamic System Prompt**: Personality, tool descriptions, and self-improvement workflow from `config/SYSTEM_PROMPT.md`
+- **Dynamic System Prompt**: Personality, decision-making principles, tool routing heuristics, and self-improvement workflow from `config/SYSTEM_PROMPT.md` (composed at runtime by `src/core/prompt.ts` with channel context and tool injection)
 - **Self-Improvement Loop**: Agent can clone repos, modify code in isolated workspaces, run tests, and create PRs via GitHub App
 - **Workspace Isolation**: All code modifications in temp directories (`/tmp/fern-workspaces/`) with auto-cleanup
 - **GitHub Integration**: Authenticated via GitHub App, PRs created as "Fern" bot

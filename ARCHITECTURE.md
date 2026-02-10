@@ -37,11 +37,11 @@ The system is a long-running Node process that accepts work from any channel, ex
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Session Manager**: Owns session lifecycle (create, load, compact, archive). Sessions are JSONL files. Each channel+user combination maps to a session. Handles channel queue (one active run per session, others wait).
+**Session Manager**: Maps channel+user combinations to OpenCode thread IDs. Manages session lifecycle with 1-hour TTL for reuse. Sessions stored in OpenCode's file-based storage.
 
-**Tool Executor**: Runs tools with parallel/sequential classification. Maintains tool result cache. Enforces unified permission model.
+**Tool Executor**: OpenCode handles tool execution internally. 14 custom tools auto-discovered from `src/.opencode/tool/`. Tools needing native modules use HTTP proxy to Fern server.
 
-**Provider Manager**: Handles LLM calls with auth profile rotation and model fallback chain. Tracks costs. Manages retries with exponential backoff.
+**Provider Manager**: LLM calls handled via OpenCode SDK. Model configured in `config/config.json5` (default: gpt-4o-mini).
 
 **Agent Loop**: The core iteration cycle. Receives message → calls LLM → executes tools → streams result → stores state. Loops until no more tool calls or termination condition.
 
@@ -96,52 +96,52 @@ This gives the agent "perfect recall" — search summaries for relevant history,
 
 ---
 
-## Layer 3: Tool Execution with Parallelism
+## Layer 3: Tool System
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   TOOL EXECUTOR                             │
+│                   TOOL SYSTEM                               │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              Tool Call Classifier                    │   │
+│  │              OpenCode Auto-Discovery                 │   │
 │  │                                                      │   │
-│  │   READ TOOLS          │    WRITE TOOLS              │   │
-│  │   (parallelizable)    │    (sequential)             │   │
-│  │   ─────────────────   │    ────────────             │   │
-│  │   • read              │    • write                  │   │
-│  │   • glob              │    • edit                   │   │
-│  │   • grep              │    • bash (mutating)        │   │
-│  │   • web_fetch         │    • message (send)         │   │
-│  │   • memory_search     │    • memory_write           │   │
-│  │   • bash (read-only)  │    • github_* (mutations)   │   │
+│  │   Tools defined in src/.opencode/tool/ using         │   │
+│  │   OpenCode plugin format: tool({ ... })              │   │
+│  │   Auto-discovered at startup (no registry needed)    │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                           │                                 │
 │                           ▼                                 │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              Execution Strategy                      │   │
+│  │              Tool Categories                         │   │
 │  │                                                      │   │
-│  │   1. Batch all READ tools from current step         │   │
-│  │   2. Execute READs in parallel (Promise.all)        │   │
-│  │   3. Execute WRITEs sequentially in order           │   │
-│  │   4. Return all results to LLM                      │   │
+│  │   BASIC          │  GITHUB         │  MEMORY         │   │
+│  │   • echo         │  • github_clone │  • memory_write │   │
+│  │   • time         │  • github_branch│  • memory_search│   │
+│  │                   │  • github_commit│  • memory_read  │   │
+│  │   SCHEDULING     │  • github_push  │                 │   │
+│  │   • schedule     │  • github_pr    │  MESSAGING      │   │
+│  │   • schedule_list│  • github_pr_   │  • send_message │   │
+│  │   • schedule_    │    status       │                 │   │
+│  │     cancel       │                 │                 │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                           │                                 │
 │                           ▼                                 │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              Tool Result Cache                       │   │
+│  │              HTTP Proxy Pattern                      │   │
 │  │                                                      │   │
-│  │   Key: hash(tool_name + args)                       │   │
-│  │   TTL: Per-tool (read: 30s, web_fetch: 5min, etc.) │   │
-│  │   Invalidation: On related write tool execution     │   │
-│  │                                                      │   │
-│  │   read("foo.ts") cached → edit("foo.ts") invalidates│   │
+│  │   OpenCode tools run in sandboxed JS runtime that    │   │
+│  │   can't load native modules (better-sqlite3, etc.)   │   │
+│  │   Tools use fetch() to call internal HTTP APIs:      │   │
+│  │   • /internal/memory/*    (memory operations)        │   │
+│  │   • /internal/scheduler/* (scheduling operations)    │   │
+│  │   • /internal/channel/*   (message sending)          │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Classification**: Simple read/write distinction. No complex dependency graphs. Reads are side-effect-free and parallelizable. Writes are ordered.
+**Auto-Discovery**: Tools are defined in `src/.opencode/tool/` and automatically loaded by OpenCode at startup. No manual registry needed.
 
-**Cache Strategy**: LRU cache keyed by tool+args hash. Write tools invalidate relevant read cache entries.
+**HTTP Proxy**: Tools that need native modules (SQLite, etc.) use `fetch()` to call internal Fern server endpoints instead of importing directly.
 
 ---
 
@@ -151,50 +151,40 @@ This gives the agent "perfect recall" — search summaries for relevant history,
 ┌─────────────────────────────────────────────────────────────┐
 │                   CHANNEL LAYER                             │
 │                                                             │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌─────────┐ │
-│  │ Telegram  │  │ WhatsApp  │  │  WebChat  │  │ Webhook │ │
-│  │  Adapter  │  │  Adapter  │  │  Adapter  │  │ Adapter │ │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └────┬────┘ │
-│        │              │              │              │       │
-│        └──────────────┴──────────────┴──────────────┘       │
-│                           │                                 │
-│                           ▼                                 │
+│  ┌───────────┐                                              │
+│  │ WhatsApp  │  (additional adapters can be added)          │
+│  │  Adapter  │                                              │
+│  │  (Twilio) │                                              │
+│  └─────┬─────┘                                              │
+│        │                                                     │
+│        ▼                                                     │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │              Unified Channel Interface               │   │
 │  │                                                      │   │
-│  │   receive(channel, user, message) → sessionKey      │   │
-│  │   send(channel, user, content, options)             │   │
-│  │   getCapabilities(channel) → { markdown, streaming }│   │
-│  └─────────────────────────────────────────────────────┘   │
-│                           │                                 │
-│                           ▼                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Channel Queue                           │   │
-│  │                                                      │   │
-│  │   Per-session queue (one run at a time)             │   │
-│  │   Messages arriving during run → queued             │   │
-│  │   On completion → process next in queue             │   │
+│  │   ChannelAdapter interface (src/channels/types.ts)  │   │
+│  │   send(message) → deliver to channel                │   │
+│  │   getCapabilities() → { markdown, streaming, ... }  │   │
+│  │   deriveSessionId(identifier) → session key         │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                           │                                 │
 │                           ▼                                 │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │              Output Formatter                        │   │
 │  │                                                      │   │
-│  │   Telegram: Markdown + chunking (4096 char limit)   │   │
-│  │   WhatsApp: Plain text + chunking                   │   │
-│  │   WebChat:  Full markdown + streaming               │   │
-│  │   Webhook:  JSON payload (for integrations)         │   │
+│  │   WhatsApp: Plain text + chunking (1600 char limit) │   │
+│  │   Markdown stripping via src/channels/format.ts     │   │
+│  │   Auto-chunking at natural break points             │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Adapters**: Each channel has an adapter that handles authentication, polling/webhooks, and protocol translation. Adapters are stateless—all state lives in core.
+**Adapters**: Each channel has an adapter that handles authentication, webhooks, and protocol translation. Adapters are stateless—all state lives in core.
 
-**Unified Interface**: All adapters implement the same interface. Core doesn't know about Telegram vs WhatsApp—it just receives messages and sends responses.
+**Unified Interface**: Adapters implement the `ChannelAdapter` interface. Core doesn't know about WhatsApp specifics—it just receives messages and sends responses.
 
-**Channel Context**: The channel name and a "channel prompt" get injected into system context (e.g., `Channel: telegram | Tone: casual, concise`). The agent naturally adapts without the core abstraction changing.
+**Channel Context**: The channel name and a "channel prompt" get injected into system context (e.g., `Channel: whatsapp | Tone: warm, conversational`). The agent naturally adapts without the core abstraction changing.
 
-**Streaming Decision**: Based on `getCapabilities()`. WebChat gets real-time streaming. Messaging apps get block delivery.
+**Current Implementation**: WhatsApp via Twilio (webhook-based). Additional adapters can be added by implementing the `ChannelAdapter` interface.
 
 ---
 
@@ -258,101 +248,49 @@ This gives the agent "perfect recall" — search summaries for relevant history,
 
 ---
 
-## Layer 6: Observability & UI
+## Layer 6: Observability & Dashboard (✅ IMPLEMENTED)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │               OBSERVABILITY LAYER                           │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              Session Store (Source of Truth)         │   │
+│  │              Dashboard API (src/server/dashboard-api)│   │
 │  │                                                      │   │
-│  │   sessions/                                         │   │
-│  │   ├── {channel}_{user}/                             │   │
-│  │   │   ├── session.jsonl    (conversation)           │   │
-│  │   │   ├── metadata.json    (stats, costs, etc.)     │   │
-│  │   │   └── tools.jsonl      (tool execution log)     │   │
-│  │   └── ...                                           │   │
+│  │   GET  /api/sessions             → list sessions    │   │
+│  │   GET  /api/sessions/:id         → session detail   │   │
+│  │   GET  /api/sessions/:id/messages→ session messages │   │
+│  │   GET  /api/memories             → persistent mems  │   │
+│  │   POST /api/memories/search      → hybrid search    │   │
+│  │   GET  /api/archives             → archive summaries│   │
+│  │   GET  /api/archives/:t/:c       → full chunk       │   │
+│  │   GET  /api/github/prs           → PR listing       │   │
+│  │   GET  /api/github/prs/:number   → PR status/checks │   │
+│  │   GET  /api/tools                → available tools  │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                           │                                 │
 │                           ▼                                 │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              Observability UI                        │   │
+│  │              Dashboard App (apps/dashboard/)        │   │
+│  │              Next.js 15 + React 19 + SWR            │   │
 │  │                                                      │   │
 │  │   Views:                                            │   │
-│  │   • Session List: All sessions, filterable          │   │
-│  │   • Session Detail: Full conversation replay        │   │
-│  │   • Tool Log: All tool executions with timing       │   │
-│  │   • Cost Dashboard: Token/cost breakdown            │   │
-│  │   • Error Log: Failed operations, retries           │   │
-│  │   • Memory Browser: Persistent memory contents      │   │
+│  │   • Overview: Summary cards (sessions, mems, PRs)   │   │
+│  │   • Sessions: Browse with message history replay    │   │
+│  │   • Memory: Persistent mems, archives, search       │   │
+│  │   • Tools: Execution analytics + detail modals      │   │
+│  │   • GitHub: PR list with checks/reviews             │   │
+│  │   • Costs: Token usage + cost breakdown             │   │
 │  │                                                      │   │
-│  │   Search:                                           │   │
-│  │   • By session (channel, user, date range)          │   │
-│  │   • Within session (message content, tool names)    │   │
-│  │   • Across sessions (full-text search)              │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                           │                                 │
-│                           ▼                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              No Separate Logging Needed              │   │
-│  │                                                      │   │
-│  │   JSONL IS the log. UI reads directly from:         │   │
-│  │   • session.jsonl → conversation replay             │   │
-│  │   • tools.jsonl → tool execution timeline           │   │
-│  │   • metadata.json → session stats                   │   │
-│  │                                                      │   │
-│  │   Structured by design, not by logging layer.       │   │
+│  │   Proxies /api/* → Fern backend via Next.js rewrites│   │
+│  │   Dark theme, Tailwind CSS 4, Lucide icons          │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key Insight**: The JSONL session files ARE the observability data. No need for a separate logging system. The UI is just a viewer/searcher over the existing data.
+**Dashboard API**: Public REST endpoints on the Fern server expose session, memory, archive, GitHub, and tool data. No separate logging system needed — the API reads directly from OpenCode storage, SQLite memory DB, and GitHub.
 
----
-
-## Layer 7: Unified Permission Model
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│               PERMISSION SYSTEM                             │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Permission Resolution                   │   │
-│  │                                                      │   │
-│  │   1. Base Profile (coding | messaging | minimal)    │   │
-│  │              ↓                                       │   │
-│  │   2. Channel Restrictions (telegram: no bash)       │   │
-│  │              ↓                                       │   │
-│  │   3. Path Overrides (*.env → deny, /tmp/* → allow)  │   │
-│  │              ↓                                       │   │
-│  │   Final: allow | deny                               │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                           │                                 │
-│                           ▼                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Permission as Config                    │   │
-│  │                                                      │   │
-│  │   Allowlist in repo-level config determines tools.  │   │
-│  │   If tool isn't allowed, it's not in LLM schema     │   │
-│  │   (agent can't call what it doesn't know exists).   │   │
-│  │                                                      │   │
-│  │   Agent can propose allowlist changes via PR.       │   │
-│  │   Human-in-the-loop at PR review, not mid-convo.    │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                           │                                 │
-│                           ▼                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Self-Repo Special Rules                 │   │
-│  │                                                      │   │
-│  │   When operating on SELF_REPO:                      │   │
-│  │   • write/edit → allowed (on branch only)           │   │
-│  │   • github_merge → DENIED (always)                  │   │
-│  │   • github_pr → allowed (human must approve)        │   │
-│  │   • bash with deploy commands → DENIED              │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
+**Dashboard App**: A separate Next.js 15 app in `apps/dashboard/` (pnpm monorepo workspace). Proxies API requests to the Fern backend. Uses SWR for client-side data fetching with auto-refresh.
 
 ---
 
@@ -479,23 +417,22 @@ User sends "help me optimize the memory search function" via Telegram
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Core runtime | Single Node process | Simplicity, no distributed state |
-| Session storage | JSONL files | Human-readable, append-only, IS the log |
+| Session storage | OpenCode file-based | Managed by OpenCode SDK, tracks diffs/parts/messages |
+| Tool system | OpenCode auto-discovery | Tools in `.opencode/tool/` auto-loaded, no registry |
+| Tool I/O | HTTP proxy pattern | OpenCode's sandboxed runtime can't load native modules |
 | Memory (archival) | Async observer + JSON chunks + SQLite + embeddings | Captures history before compaction, two-phase retrieval |
 | Memory (persistent) | SQLite + sqlite-vec + OpenAI embeddings | Agent-writable, vector-searchable facts/preferences/learnings |
-| Parallelism | Read/write classification | Simple, no graph complexity |
-| Caching | LRU with write-invalidation | Easy wins, no stale data |
 | Channels | Adapter pattern | Add channels without core changes |
 | Self-improvement | PR-only, no direct merge | Safety boundary, human in loop |
 | Scheduling | Prompt-based jobs + SQLite + setInterval | Agent autonomy, no external deps, survives restarts |
-| Observability | UI over JSONL | No extra logging, data already structured |
-| Streaming | Capability-based | Stream where useful, block where not |
-| Permissions | Profile + path + channel layers | Flexible without complexity |
+| Observability | Dashboard API + Next.js app | API reads from existing data stores, no separate logging |
+| Monorepo | pnpm workspaces | Root (agent) + apps/dashboard |
 
 ---
 
 ## Technology Stack
 
-- **Runtime**: Node.js 22+ (TypeScript)
+- **Runtime**: Node.js 22+ (TypeScript, ESM)
 - **LLM SDK**: OpenCode SDK (embedded server + client)
 - **Database**: SQLite via better-sqlite3 (memory, scheduling)
 - **Vector Store**: sqlite-vec (vector similarity search)
@@ -503,4 +440,8 @@ User sends "help me optimize the memory search function" via Telegram
 - **Schema Validation**: Zod
 - **HTTP Server**: Hono (webhooks, API, internal endpoints)
 - **Scheduling**: cron-parser v5, p-queue
-- **Channels**: Twilio (WhatsApp), custom WebSocket (WebChat, planned)
+- **Channels**: Twilio (WhatsApp)
+- **Dashboard**: Next.js 15, React 19, SWR, Tailwind CSS 4
+- **Testing**: Vitest (26 test files, feature-based CI)
+- **Linting**: Biome
+- **Monorepo**: pnpm workspaces

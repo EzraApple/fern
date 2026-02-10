@@ -1,154 +1,78 @@
 ---
 name: Session Management
 description: |
-  How Fern manages sessions - JSONL format, context window, channel queues.
-  Reference when: working with session storage, managing context, handling concurrent messages, session lifecycle.
+  How Fern manages sessions via OpenCode SDK.
+  Reference when: working with session storage, understanding context window management, session lifecycle, thread mapping.
 ---
 
 # Session Management
 
+## Overview
+
+Sessions are managed by the OpenCode SDK. Fern maps channel+user combinations to OpenCode thread IDs for conversation continuity.
+
 ## Session Key Derivation
 
-Sessions are keyed by channel + user:
+Each channel adapter derives a session key from channel-specific identifiers:
 
 ```typescript
-function deriveSessionKey(channelId: string, userId: string): string {
-  return `${channelId}_${userId}`;
-}
-
-// Examples:
-// telegram_12345_user_67890
-// whatsapp_15551234567_user_abc
-// webchat_session_xyz_user_123
+// WhatsApp: phone number → session key
+adapter.deriveSessionId("+15551234567")  // → "whatsapp_+15551234567"
 ```
 
-## JSONL Session Format
+## OpenCode Session Storage
 
-### File Structure
+OpenCode manages session data in `~/.local/share/opencode/storage/`:
 
 ```
-sessions/
-├── telegram_12345_user_67890/
-│   ├── session.jsonl      # Conversation events
-│   ├── metadata.json      # Session metadata
-│   └── tools.jsonl        # Tool execution log (for observability)
-├── whatsapp_15551234567_user_abc/
-│   └── ...
+~/.local/share/opencode/storage/
+├── project/          # Project-level metadata
+├── session/          # Session records
+├── message/          # Individual messages
+├── part/             # Message parts (text, tool calls, reasoning)
+└── session_diff/     # File diffs tracked per session
 ```
 
-### Event Types
+Fern does **not** manage session files directly — it interacts via the OpenCode SDK client API.
+
+## Thread-Based Session Mapping
+
+Fern maintains a mapping from channel session keys to OpenCode thread IDs:
 
 ```typescript
-type SessionEvent =
-  | { type: "message"; role: "user" | "assistant"; content: string; timestamp: string }
-  | { type: "tool_call"; toolCallId: string; toolName: string; args: unknown; timestamp: string }
-  | { type: "tool_result"; toolCallId: string; result: string; timestamp: string }
-  | { type: "system"; content: string; timestamp: string }
-  | { type: "compaction"; summary: string; archivedCount: number; timestamp: string };
+// In src/core/agent.ts
+// channelSessionKey → OpenCode threadId
+const sessionMap = new Map<string, string>();
 ```
 
-### Example Session
-
-```jsonl
-{"type":"system","content":"Session started","timestamp":"2024-01-01T10:00:00Z"}
-{"type":"message","role":"user","content":"What files are in src/?","timestamp":"2024-01-01T10:00:01Z"}
-{"type":"tool_call","toolCallId":"tc_1","toolName":"glob","args":{"pattern":"src/**/*"},"timestamp":"2024-01-01T10:00:02Z"}
-{"type":"tool_result","toolCallId":"tc_1","result":"src/index.ts\nsrc/config.ts","timestamp":"2024-01-01T10:00:03Z"}
-{"type":"message","role":"assistant","content":"The src/ directory contains:\n- index.ts\n- config.ts","timestamp":"2024-01-01T10:00:04Z"}
-```
+- On first message from a channel+user, a new OpenCode session is created and the mapping is stored
+- On subsequent messages, the existing OpenCode thread is reused for conversation continuity
+- Sessions have a 1-hour TTL for reuse — after that, a new session is created
 
 ## Session Lifecycle
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Create    │ ──▶ │   Active    │ ──▶ │  Archived   │
-│  (on first  │     │ (messages   │     │ (compacted  │
-│   message)  │     │  flowing)   │     │  or idle)   │
+│   Create    │ ──▶ │   Active    │ ──▶ │  Expired    │
+│  (first msg │     │ (messages   │     │  (1hr TTL   │
+│   from user)│     │  flowing)   │     │   exceeded) │
 └─────────────┘     └─────────────┘     └─────────────┘
                            │
                            ▼
                     ┌─────────────┐
-                    │  Compacted  │
-                    │ (summary    │
-                    │  replaces   │
-                    │  old msgs)  │
+                    │  Archived   │
+                    │ (memory     │
+                    │  observer   │
+                    │  captures)  │
                     └─────────────┘
-```
-
-### Create
-
-```typescript
-async function createSession(channelId: string, userId: string): Promise<Session> {
-  const key = deriveSessionKey(channelId, userId);
-  const session = {
-    id: generateId(),
-    key,
-    channelId,
-    userId,
-    createdAt: new Date().toISOString(),
-  };
-
-  await writeMetadata(key, session);
-  await appendEvent(key, { type: "system", content: "Session started", timestamp: now() });
-
-  return session;
-}
-```
-
-### Load
-
-```typescript
-async function loadSession(key: string): Promise<SessionWithHistory> {
-  const metadata = await readMetadata(key);
-  const events = await readJsonl(key);
-
-  return {
-    ...metadata,
-    history: eventsToMessages(events),
-  };
-}
 ```
 
 ## Context Window Management
 
-### Token Counting
-
-```typescript
-function estimateTokens(text: string): number {
-  // Rough estimate: ~4 chars per token
-  return Math.ceil(text.length / 4);
-}
-
-function getSessionTokenCount(session: SessionWithHistory): number {
-  return session.history.reduce(
-    (sum, msg) => sum + estimateTokens(msg.content),
-    0
-  );
-}
-```
-
-### Compaction Trigger
-
-```typescript
-const CONTEXT_LIMIT = 128_000;  // Model context window
-const OUTPUT_RESERVE = 8_000;   // Reserved for output
-const COMPACTION_THRESHOLD = CONTEXT_LIMIT - OUTPUT_RESERVE - 20_000;
-
-async function maybeCompact(session: SessionWithHistory): Promise<void> {
-  const tokenCount = getSessionTokenCount(session);
-
-  if (tokenCount > COMPACTION_THRESHOLD) {
-    await compactSession(session);
-  }
-}
-```
-
-### Compaction Process
-
-OpenCode handles live context compaction internally. Fern adds an **async archival layer** that captures conversation chunks *before* they're lost to compaction:
+OpenCode handles context compaction internally when the conversation exceeds the model's context window. Fern adds a separate **async archival layer** that captures conversation history *before* it's lost to compaction:
 
 - After each agent turn, the archival observer checks if unarchived tokens exceed the chunk threshold (~25k)
-- If so, it summarizes the oldest unarchived chunk via gpt-4o-mini and stores {summary, messages} to `~/.fern/memory/`
+- If so, it summarizes the oldest unarchived chunk via gpt-4o-mini and stores it in the memory DB
 - This is non-blocking (fire-and-forget) and independent of OpenCode's compaction
 - See [memory-system.md](memory-system.md) for full details
 
@@ -158,134 +82,41 @@ void onTurnComplete(input.sessionId, sessionId).catch((err) => {
   console.warn("[Memory] Archival observer error:", err);
 });
 ```
-```
 
-## Channel Queue
+## Dashboard Session Access
 
-Only one agent run per session at a time:
-
-```typescript
-class SessionQueue {
-  private running = new Map<string, boolean>();
-  private queues = new Map<string, InboundMessage[]>();
-
-  async enqueue(message: InboundMessage): Promise<void> {
-    const key = deriveSessionKey(message.channelId, message.userId);
-
-    if (this.running.get(key)) {
-      // Queue for later
-      const queue = this.queues.get(key) ?? [];
-      queue.push(message);
-      this.queues.set(key, queue);
-      return;
-    }
-
-    // Process now
-    await this.process(key, message);
-  }
-
-  private async process(key: string, message: InboundMessage): Promise<void> {
-    this.running.set(key, true);
-
-    try {
-      await runAgentLoop(key, message);
-    } finally {
-      this.running.set(key, false);
-
-      // Process queued messages
-      const queue = this.queues.get(key);
-      if (queue && queue.length > 0) {
-        const next = queue.shift()!;
-        await this.process(key, next);
-      }
-    }
-  }
-}
-```
-
-## Session Metadata
-
-```typescript
-interface SessionMetadata {
-  id: string;
-  key: string;
-  channelId: string;
-  userId: string;
-  messageCount: number;
-  tokenCount: number;
-  toolCallCount: number;
-  createdAt: string;
-  updatedAt: string;
-  lastCompactedAt?: string;
-  status: "active" | "archived";
-}
-```
-
-Update metadata after each interaction:
-
-```typescript
-async function updateMetadata(key: string, updates: Partial<SessionMetadata>): Promise<void> {
-  const current = await readMetadata(key);
-  await writeMetadata(key, {
-    ...current,
-    ...updates,
-    updatedAt: now(),
-  });
-}
-```
-
-## Tool Execution Log
-
-Separate log for observability:
+The dashboard API (`src/server/dashboard-api.ts`) exposes session data for the observability UI:
 
 ```
-sessions/{key}/tools.jsonl
+GET  /api/sessions              → list all sessions
+GET  /api/sessions/:id          → session detail
+GET  /api/sessions/:id/messages → full message history
 ```
 
-```jsonl
-{"toolName":"read","args":{"path":"src/index.ts"},"durationMs":45,"cacheHit":false,"timestamp":"..."}
-{"toolName":"read","args":{"path":"src/index.ts"},"durationMs":2,"cacheHit":true,"timestamp":"..."}
-{"toolName":"edit","args":{"path":"src/index.ts"},"durationMs":120,"success":true,"timestamp":"..."}
-```
+These endpoints read directly from OpenCode's storage via the OpenCode service client (`src/core/opencode-service.ts`).
 
 ## Anti-Patterns
 
-### Don't: Load full session for every operation
+### Don't: Access OpenCode storage files directly
 
 ```typescript
-// Bad - loads everything
-const session = await loadFullSession(key);
-const lastMessage = session.history[session.history.length - 1];
+// Bad - reading session files directly
+const data = fs.readFileSync("~/.local/share/opencode/storage/session/...");
 
-// Good - use metadata or tail
-const metadata = await readMetadata(key);
-const lastEvents = await tailJsonl(key, 1);
+// Good - use OpenCode service client
+const session = await getSession(sessionId);
+const messages = await getSessionMessages(sessionId);
 ```
 
-### Don't: Skip the queue
+### Don't: Skip the archival hook
 
 ```typescript
-// Bad - concurrent runs on same session
-await Promise.all([
-  runAgentLoop(key, message1),
-  runAgentLoop(key, message2),
-]);
+// Bad - no memory capture
+const response = await runAgentLoop(input);
+return response;
 
-// Good - use queue
-await sessionQueue.enqueue(message1);
-await sessionQueue.enqueue(message2);
-```
-
-### Don't: Wait until overflow to compact
-
-```typescript
-// Bad - reactive
-if (error.code === "CONTEXT_OVERFLOW") {
-  await compactSession(session);
-}
-
-// Good - proactive
-if (getSessionTokenCount(session) > COMPACTION_THRESHOLD) {
-  await compactSession(session);
-}
+// Good - fire archival observer after each turn
+const response = await runAgentLoop(input);
+void onTurnComplete(threadId, sessionId).catch(console.warn);
+return response;
 ```

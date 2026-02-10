@@ -49,7 +49,20 @@ async function checkAndArchive(threadId: string, sessionId: string): Promise<voi
 
   // 2. Load watermark to find where we left off
   const watermark = readWatermark(threadId);
-  const startIndex = watermark ? watermark.lastArchivedMessageIndex + 1 : 0;
+  let startIndex: number;
+
+  if (!watermark) {
+    // First archival for this thread
+    startIndex = 0;
+  } else if (!watermark.openCodeSessionId || watermark.openCodeSessionId !== sessionId) {
+    // Session rolled over (or legacy watermark without session tracking) — reset to 0
+    console.info(
+      `[Memory] Session rollover detected for thread ${threadId} (was: ${watermark.openCodeSessionId ?? "unknown"}, now: ${sessionId}). Resetting archival cursor.`
+    );
+    startIndex = 0;
+  } else {
+    startIndex = watermark.lastArchivedMessageIndex + 1;
+  }
 
   // 3. Calculate unarchived messages
   const unarchivedMessages = messages.slice(startIndex);
@@ -128,6 +141,7 @@ async function checkAndArchive(threadId: string, sessionId: string): Promise<voi
     totalArchivedTokens: (watermark?.totalArchivedTokens ?? 0) + chunkTokens,
     totalChunks: (watermark?.totalChunks ?? 0) + 1,
     lastArchivedAt: new Date().toISOString(),
+    openCodeSessionId: sessionId,
   };
   writeWatermark(threadId, newWatermark);
 

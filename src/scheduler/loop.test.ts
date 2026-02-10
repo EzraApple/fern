@@ -12,6 +12,8 @@ vi.mock("./db.js", () => ({
   getDueJobs: vi.fn(),
   updateJobStatus: vi.fn(),
   advanceRecurringJob: vi.fn(),
+  claimJob: vi.fn().mockReturnValue(true),
+  recoverStaleJobs: vi.fn().mockReturnValue(0),
 }));
 
 // Mock config
@@ -25,7 +27,13 @@ vi.mock("./config.js", () => ({
 
 import { runAgentLoop } from "../core/agent.js";
 import { getSchedulerConfig } from "./config.js";
-import { advanceRecurringJob, getDueJobs, updateJobStatus } from "./db.js";
+import {
+  advanceRecurringJob,
+  claimJob,
+  getDueJobs,
+  recoverStaleJobs,
+  updateJobStatus,
+} from "./db.js";
 import { executeJob, startSchedulerLoop, stopSchedulerLoop, tick } from "./loop.js";
 
 const mockRunAgentLoop = vi.mocked(runAgentLoop);
@@ -33,6 +41,8 @@ const mockGetDueJobs = vi.mocked(getDueJobs);
 const mockUpdateJobStatus = vi.mocked(updateJobStatus);
 const mockAdvanceRecurringJob = vi.mocked(advanceRecurringJob);
 const mockGetConfig = vi.mocked(getSchedulerConfig);
+const mockClaimJob = vi.mocked(claimJob);
+const mockRecoverStaleJobs = vi.mocked(recoverStaleJobs);
 
 function makeJob(overrides?: Partial<ScheduledJob>): ScheduledJob {
   const now = new Date().toISOString();
@@ -66,6 +76,8 @@ describe("scheduler loop", () => {
       pollIntervalMs: 60_000,
       maxConcurrentJobs: 3,
     });
+    mockClaimJob.mockReturnValue(true);
+    mockRecoverStaleJobs.mockReturnValue(0);
   });
 
   afterEach(() => {
@@ -87,11 +99,10 @@ describe("scheduler loop", () => {
   });
 
   describe("executeJob", () => {
-    it("marks job as running then completed for one-shot", async () => {
+    it("marks job as completed for one-shot", async () => {
       const job = makeJob();
       await executeJob(job);
 
-      expect(mockUpdateJobStatus).toHaveBeenCalledWith("job_test", "running");
       expect(mockUpdateJobStatus).toHaveBeenCalledWith("job_test", "completed", {
         completedAt: expect.any(String),
         lastRunResponse: "Done!",

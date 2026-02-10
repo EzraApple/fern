@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock external modules BEFORE importing
 vi.mock("node:child_process", () => ({
-  exec: vi.fn(),
+  execFile: vi.fn(),
 }));
 vi.mock("node:util", () => ({
   promisify: vi.fn((fn: unknown) => fn),
@@ -16,7 +16,7 @@ vi.mock("./github-service.js", () => ({
   ),
 }));
 
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import type { WorkspaceInfo } from "../types/workspace.js";
 import {
   commitChanges,
@@ -27,7 +27,7 @@ import {
 } from "./workspace-git.js";
 import { updateWorkspaceBranch } from "./workspace.js";
 
-const mockExec = exec as unknown as ReturnType<typeof vi.fn>;
+const mockExecFile = execFile as unknown as ReturnType<typeof vi.fn>;
 
 function makeWorkspace(overrides?: Partial<WorkspaceInfo>): WorkspaceInfo {
   return {
@@ -46,20 +46,22 @@ describe("workspace-git", () => {
   });
 
   describe("createBranch", () => {
-    it("should run git checkout -b and update workspace branch", async () => {
-      mockExec.mockResolvedValueOnce({ stdout: "", stderr: "" });
+    it("should run git checkout -b with arg array and update workspace branch", async () => {
+      mockExecFile.mockResolvedValueOnce({ stdout: "", stderr: "" });
       const workspace = makeWorkspace();
 
       await createBranch(workspace, "feature/new-thing");
 
-      expect(mockExec).toHaveBeenCalledWith("git checkout -b feature/new-thing", {
-        cwd: "/tmp/fern-workspaces/test-workspace",
-      });
+      expect(mockExecFile).toHaveBeenCalledWith(
+        "git",
+        ["checkout", "-b", "feature/new-thing"],
+        { cwd: "/tmp/fern-workspaces/test-workspace" }
+      );
       expect(updateWorkspaceBranch).toHaveBeenCalledWith("test-workspace-id", "feature/new-thing");
     });
 
     it("should throw on git error", async () => {
-      mockExec.mockRejectedValueOnce(new Error("branch already exists"));
+      mockExecFile.mockRejectedValueOnce(new Error("branch already exists"));
       const workspace = makeWorkspace();
 
       await expect(createBranch(workspace, "existing-branch")).rejects.toThrow(
@@ -68,16 +70,31 @@ describe("workspace-git", () => {
     });
 
     it("should rethrow non-Error exceptions from gitCmd", async () => {
-      mockExec.mockRejectedValueOnce("string error");
+      mockExecFile.mockRejectedValueOnce("string error");
       const workspace = makeWorkspace();
 
       await expect(createBranch(workspace, "some-branch")).rejects.toBe("string error");
+    });
+
+    it("should pass branch name as separate arg, not interpolated into a string", async () => {
+      mockExecFile.mockResolvedValueOnce({ stdout: "", stderr: "" });
+      const workspace = makeWorkspace();
+      const malicious = "branch; rm -rf /";
+
+      await createBranch(workspace, malicious);
+
+      // The malicious string is passed as a single arg element, never shell-interpreted
+      expect(mockExecFile).toHaveBeenCalledWith(
+        "git",
+        ["checkout", "-b", "branch; rm -rf /"],
+        expect.any(Object)
+      );
     });
   });
 
   describe("commitChanges", () => {
     it("should stage, check status, configure user, and commit", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add -A
         .mockResolvedValueOnce({ stdout: "M file.ts\n", stderr: "" }) // git status --porcelain
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git config user.name
@@ -97,7 +114,7 @@ describe("workspace-git", () => {
     });
 
     it("should extract commit hash from various output formats", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // add
         .mockResolvedValueOnce({ stdout: "M file.ts\n", stderr: "" }) // status
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // config name
@@ -114,7 +131,7 @@ describe("workspace-git", () => {
     });
 
     it("should return 'unknown' hash when pattern does not match", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" })
         .mockResolvedValueOnce({ stdout: "M file.ts\n", stderr: "" })
         .mockResolvedValueOnce({ stdout: "", stderr: "" })
@@ -131,7 +148,7 @@ describe("workspace-git", () => {
     });
 
     it("should throw when there are no changes to commit", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add -A
         .mockResolvedValueOnce({ stdout: "", stderr: "" }); // git status --porcelain (empty)
 
@@ -142,8 +159,8 @@ describe("workspace-git", () => {
       );
     });
 
-    it("should escape double quotes in commit message", async () => {
-      mockExec
+    it("should pass commit message as separate arg without shell escaping", async () => {
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" })
         .mockResolvedValueOnce({ stdout: "M file.ts\n", stderr: "" })
         .mockResolvedValueOnce({ stdout: "", stderr: "" })
@@ -156,13 +173,14 @@ describe("workspace-git", () => {
       const workspace = makeWorkspace();
       await commitChanges(workspace, 'Fix "quoted" stuff');
 
-      // Check that the commit command escaped the quotes
-      const commitCall = mockExec.mock.calls[4]!;
-      expect(commitCall[0]).toBe('git commit -m "Fix \\"quoted\\" stuff"');
+      // Message is passed as a raw arg — no escaping needed with execFile
+      const commitCall = mockExecFile.mock.calls[4]!;
+      expect(commitCall[0]).toBe("git");
+      expect(commitCall[1]).toEqual(["commit", "-m", 'Fix "quoted" stuff']);
     });
 
     it("should handle git config errors silently", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // add
         .mockResolvedValueOnce({ stdout: "M file.ts\n", stderr: "" }) // status
         .mockRejectedValueOnce(new Error("config error")) // config user.name fails
@@ -172,23 +190,12 @@ describe("workspace-git", () => {
         }); // commit still succeeds
 
       const workspace = makeWorkspace();
-      // The try/catch in commitChanges for config errors should catch this
-      // but gitCmd wraps it - the outer try/catch in commitChanges catches it
-      // Actually, the code has a try/catch around both config calls, so if the
-      // first config call fails, it catches and continues. However, gitCmd
-      // throws on error, so the inner try/catch in commitChanges catches it.
-      // Let's verify by checking that it throws since gitCmd wraps the error
-      // Actually looking at the source: the config calls are wrapped in their own
-      // try/catch that ignores errors, so it should continue to commit.
-      // But gitCmd itself throws. The config try block has `try { await gitCmd(...); await gitCmd(...) } catch { }`
-      // So if the first config call fails, the second is skipped but the commit proceeds.
-
       const commit = await commitChanges(workspace, "commit message");
       expect(commit.hash).toBe("abc1234");
     });
 
     it("should rethrow non-Error exceptions", async () => {
-      mockExec.mockRejectedValueOnce("raw string error");
+      mockExecFile.mockRejectedValueOnce("raw string error");
       const workspace = makeWorkspace();
 
       await expect(commitChanges(workspace, "msg")).rejects.toBe("raw string error");
@@ -197,40 +204,47 @@ describe("workspace-git", () => {
 
   describe("pushBranch", () => {
     it("should refresh remote URL and push to origin by default", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git remote set-url
         .mockResolvedValueOnce({ stdout: "", stderr: "" }); // git push
       const workspace = makeWorkspace({ branch: "feature-branch" });
 
       await pushBranch(workspace);
 
-      expect(mockExec).toHaveBeenCalledWith(expect.stringContaining("git remote set-url origin"), {
-        cwd: "/tmp/fern-workspaces/test-workspace",
-      });
-      expect(mockExec).toHaveBeenCalledWith("git push -u origin feature-branch", {
-        cwd: "/tmp/fern-workspaces/test-workspace",
-      });
+      expect(mockExecFile).toHaveBeenCalledWith(
+        "git",
+        ["remote", "set-url", "origin", "https://x-access-token:mock-token@github.com/test/repo.git"],
+        { cwd: "/tmp/fern-workspaces/test-workspace" }
+      );
+      expect(mockExecFile).toHaveBeenCalledWith(
+        "git",
+        ["push", "-u", "origin", "feature-branch"],
+        { cwd: "/tmp/fern-workspaces/test-workspace" }
+      );
     });
 
     it("should push to specified remote", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git remote set-url
         .mockResolvedValueOnce({ stdout: "", stderr: "" }); // git push
       const workspace = makeWorkspace({ branch: "feature-branch" });
 
       await pushBranch(workspace, "upstream");
 
-      expect(mockExec).toHaveBeenCalledWith(
-        expect.stringContaining("git remote set-url upstream"),
+      expect(mockExecFile).toHaveBeenCalledWith(
+        "git",
+        ["remote", "set-url", "upstream", expect.any(String)],
         { cwd: "/tmp/fern-workspaces/test-workspace" }
       );
-      expect(mockExec).toHaveBeenCalledWith("git push -u upstream feature-branch", {
-        cwd: "/tmp/fern-workspaces/test-workspace",
-      });
+      expect(mockExecFile).toHaveBeenCalledWith(
+        "git",
+        ["push", "-u", "upstream", "feature-branch"],
+        { cwd: "/tmp/fern-workspaces/test-workspace" }
+      );
     });
 
     it("should throw on push failure", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git remote set-url
         .mockRejectedValueOnce(new Error("remote: Permission denied")); // git push
       const workspace = makeWorkspace({ branch: "feature-branch" });
@@ -239,7 +253,7 @@ describe("workspace-git", () => {
     });
 
     it("should rethrow non-Error exceptions", async () => {
-      mockExec
+      mockExecFile
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git remote set-url
         .mockRejectedValueOnce(42); // git push
       const workspace = makeWorkspace({ branch: "feature-branch" });
@@ -250,7 +264,7 @@ describe("workspace-git", () => {
 
   describe("getCurrentBranch", () => {
     it("should return trimmed branch name", async () => {
-      mockExec.mockResolvedValueOnce({
+      mockExecFile.mockResolvedValueOnce({
         stdout: "  feature/my-branch  \n",
         stderr: "",
       });
@@ -258,11 +272,15 @@ describe("workspace-git", () => {
       const branch = await getCurrentBranch("/tmp/workspace");
 
       expect(branch).toBe("feature/my-branch");
-      expect(mockExec).toHaveBeenCalledWith("git branch --show-current", { cwd: "/tmp/workspace" });
+      expect(mockExecFile).toHaveBeenCalledWith(
+        "git",
+        ["branch", "--show-current"],
+        { cwd: "/tmp/workspace" }
+      );
     });
 
     it("should return empty string when no branch (detached HEAD)", async () => {
-      mockExec.mockResolvedValueOnce({ stdout: "", stderr: "" });
+      mockExecFile.mockResolvedValueOnce({ stdout: "", stderr: "" });
 
       const branch = await getCurrentBranch("/tmp/workspace");
 
@@ -270,7 +288,7 @@ describe("workspace-git", () => {
     });
 
     it("should throw wrapped error on git command failure", async () => {
-      mockExec.mockRejectedValueOnce(new Error("not a git repository"));
+      mockExecFile.mockRejectedValueOnce(new Error("not a git repository"));
 
       await expect(getCurrentBranch("/tmp/workspace")).rejects.toThrow("Git command failed");
     });
@@ -278,7 +296,7 @@ describe("workspace-git", () => {
 
   describe("hasUncommittedChanges", () => {
     it("should return true when there are uncommitted changes", async () => {
-      mockExec.mockResolvedValueOnce({
+      mockExecFile.mockResolvedValueOnce({
         stdout: "M src/index.ts\nA src/new-file.ts\n",
         stderr: "",
       });
@@ -289,7 +307,7 @@ describe("workspace-git", () => {
     });
 
     it("should return false when working tree is clean", async () => {
-      mockExec.mockResolvedValueOnce({ stdout: "", stderr: "" });
+      mockExecFile.mockResolvedValueOnce({ stdout: "", stderr: "" });
 
       const result = await hasUncommittedChanges("/tmp/workspace");
 
@@ -297,7 +315,7 @@ describe("workspace-git", () => {
     });
 
     it("should return false when stdout is only whitespace", async () => {
-      mockExec.mockResolvedValueOnce({ stdout: "   \n  ", stderr: "" });
+      mockExecFile.mockResolvedValueOnce({ stdout: "   \n  ", stderr: "" });
 
       const result = await hasUncommittedChanges("/tmp/workspace");
 

@@ -1,25 +1,23 @@
 # Fern
 
-A self-improving headless AI agent with multi-channel support (Telegram, WhatsApp, etc.), persistent memory, and the ability to modify its own codebase through controlled PR submissions.
+A self-improving headless AI agent with WhatsApp support, persistent memory, observability dashboard, and the ability to modify its own codebase through controlled PR submissions.
 
 ## Current Status
 
-**Phase 1 MVP is complete.** See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for full roadmap.
+**All core phases complete** (MVP, Self-Improvement, Memory, Observability, Scheduling).
 
 ### What's Working
 - Agent loop: message → OpenCode SDK → tool execution → response
 - Session storage: OpenCode file-based storage in `~/.local/share/opencode/storage/`
-- HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`)
-- Tools: `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + `send_message` + built-in coding tools (read, edit, write, bash, glob, grep)
+- HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`, `/api/*` dashboard endpoints)
+- Tools: 14 tools — `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + `send_message` + built-in coding tools (read, edit, write, bash, glob, grep)
 - WhatsApp channel via Twilio (webhook-based)
 - Dynamic system prompt from `config/SYSTEM_PROMPT.md` with self-improvement workflow
 - OpenCode embedded server (port 4096-4300)
 - **Phase 2: Self-improvement loop** - Agent can clone repos, modify code, run tests, create PRs via GitHub App
 - **Phase 3: Memory system** - SQLite + sqlite-vec + OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` tool for facts/preferences/learnings. Hybrid vector + FTS5 search. Internal HTTP API proxies DB operations for OpenCode tool compatibility.
+- **Phase 4: Observability** - Next.js 15 dashboard app (`apps/dashboard/`) with views for sessions, memory, tools, GitHub PRs, and costs. Dashboard API at `/api/*` on the Fern server.
 - **Phase 5: Scheduling** - SQLite job queue in existing memory DB. `schedule` tool creates one-shot or recurring (cron) jobs. Each job is a prompt that fires a fresh agent session — agent has full autonomy to decide what tools to use and what channels to message. `send_message` tool enables proactive outbound messaging to any channel. Background loop polls every 60s.
-
-### Next Up
-- Observability (tool execution logging, session metadata)
 
 ## Quick Commands
 
@@ -29,7 +27,9 @@ pnpm run build        # Build TypeScript
 pnpm run start        # Start server (needs .env with OPENAI_API_KEY)
 pnpm run lint         # Run Biome linter
 pnpm run tsc          # Type check
+pnpm run test         # Run all tests (Vitest)
 pnpm run memory:wipe  # Wipe all archived memories (dev utility)
+pnpm run dashboard    # Start dashboard dev server (port 3000)
 ```
 
 ## Key Files
@@ -66,7 +66,8 @@ pnpm run memory:wipe  # Wipe all archived memories (dev utility)
 | `src/.opencode/tool/schedule.ts` | `schedule` tool — create one-shot or recurring jobs |
 | `src/.opencode/tool/schedule-manage.ts` | `schedule_list` and `schedule_cancel` tools |
 | `src/.opencode/tool/send-message.ts` | `send_message` tool — proactive outbound messaging to any channel |
-| `src/server/server.ts` | HTTP routes (includes internal memory, scheduler, and channel APIs) |
+| `src/server/server.ts` | HTTP routes (includes internal memory, scheduler, channel, and dashboard APIs) |
+| `src/server/dashboard-api.ts` | Public dashboard API endpoints (sessions, memories, archives, GitHub PRs, tools) |
 | `src/server/memory-api.ts` | Internal memory API endpoints (write, search, read, delete) |
 | `src/server/scheduler-api.ts` | Internal scheduler API endpoints (create, list, get, cancel) |
 | `src/server/channel-api.ts` | Internal channel send API (adapter lookup + dispatch) |
@@ -78,6 +79,10 @@ pnpm run memory:wipe  # Wipe all archived memories (dev utility)
 | `src/channels/whatsapp/twilio-gateway.ts` | Twilio API wrapper |
 | `src/channels/format.ts` | Markdown stripping, message chunking |
 | `src/channels/types.ts` | Shared channel interfaces |
+| `apps/dashboard/` | Next.js 15 observability dashboard (monorepo workspace) |
+| `apps/dashboard/src/lib/api.ts` | Fetch wrappers for all dashboard API endpoints |
+| `apps/dashboard/src/lib/hooks.ts` | SWR hooks (useSessions, useMemories, useArchives, usePRs, useTools) |
+| `apps/dashboard/src/lib/types.ts` | TypeScript types mirroring OpenCode SDK models |
 
 ## Patterns Established
 
@@ -162,6 +167,14 @@ Tools are auto-discovered by OpenCode at startup (no registry needed).
 - **send_message tool**: Enables proactive outbound messaging to any channel from any session. Calls `/internal/channel/send` which looks up adapter from registry.
 - **Config via env vars**: `FERN_SCHEDULER_ENABLED`, `FERN_SCHEDULER_POLL_INTERVAL_MS`, `FERN_SCHEDULER_MAX_CONCURRENT`
 
+### Observability Dashboard (Phase 4)
+- **Dashboard API**: Public REST endpoints at `/api/*` on the Fern server (`src/server/dashboard-api.ts`)
+- **Dashboard App**: Next.js 15 app in `apps/dashboard/` (pnpm monorepo workspace, runs on port 3000)
+- **Data sources**: Reads from OpenCode storage (sessions/messages), SQLite memory DB (memories/archives), and GitHub API (PRs/status)
+- **Proxying**: Next.js rewrites `/api/*` to `http://127.0.0.1:4000/api/*` (configurable via `FERN_API_URL` env var)
+- **Client-side**: SWR hooks for data fetching, React 19, Tailwind CSS 4, dark theme
+- **Views**: Overview, Sessions, Memory (3 tabs), Tools, GitHub, Costs
+
 ## Reference Projects
 
 These were used for inspiration (in `/Users/ezraapple/Projects/`):
@@ -175,9 +188,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full system design with diagrams.
 **Key layers:**
 - **Core Runtime**: OpenCode SDK manages agent loop, sessions, and tool execution
 - **OpenCode Service**: Embedded server, client management, event streaming
-- **Tools**: Auto-discovered from `.opencode/tool/` directory
-- **Channel Adapters**: WhatsApp (Twilio), WebChat (planned)
-- **Self-Improvement**: PR-only code modifications with human approval (Phase 2)
+- **Tools**: 14 tools auto-discovered from `.opencode/tool/`, native module access via HTTP proxy
+- **Channel Adapters**: WhatsApp (Twilio)
+- **Memory**: SQLite + sqlite-vec, async archival, persistent memories, hybrid search
+- **Scheduling**: SQLite job queue, cron support, background polling loop
+- **Observability**: Dashboard API + Next.js 15 app
+- **Self-Improvement**: PR-only code modifications with human approval
 
 ## Agent Docs
 
@@ -195,30 +211,30 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full system design with diagrams.
 
 | Doc | Reference When |
 |-----|----------------|
-| [implementing-tools](agent-docs/implementing-tools.md) | Adding new tools, read/write classification, caching, permissions |
+| [implementing-tools](agent-docs/implementing-tools.md) | Adding new tools using OpenCode plugin format, HTTP proxy pattern |
 | [implementing-channels](agent-docs/implementing-channels.md) | Adding channel adapters, formatting output, channel prompts |
 | [memory-system](agent-docs/memory-system.md) | Working with session/persistent memory, search, compaction |
-| [session-management](agent-docs/session-management.md) | JSONL format, context window, channel queues |
+| [session-management](agent-docs/session-management.md) | OpenCode session management, context window, archival |
 | [self-improvement](agent-docs/self-improvement.md) | PR-based self-modification, safety boundaries |
 
 ## Project Structure
 
 ```
-fern/
+fern/                              # pnpm monorepo
 ├── src/
-│   ├── index.ts        # Entry point
-│   ├── core/           # Agent loop
-│   ├── config/         # Configuration
-│   ├── storage/        # JSONL sessions
-│   ├── tools/          # Tool definitions
-│   ├── server/         # HTTP server
-│   ├── channels/       # Channel adapters (WhatsApp via Twilio)
-│   ├── memory/         # Async archival layer (observer, storage, search, summarizer)
-│   └── scheduler/      # Job scheduling (types, config, db, loop)
-├── config/             # Config files
-├── agent-docs/         # AI development guidance
-├── ARCHITECTURE.md     # System design
-└── IMPLEMENTATION_PLAN.md  # Roadmap with checklist
+│   ├── index.ts                   # Entry point
+│   ├── core/                      # Agent loop, GitHub service, workspace management
+│   ├── config/                    # Configuration loading
+│   ├── server/                    # HTTP server, dashboard API, internal APIs
+│   ├── channels/                  # Channel adapters (WhatsApp via Twilio)
+│   ├── memory/                    # Async archival, persistent memory, hybrid search
+│   ├── scheduler/                 # Job scheduling (types, config, db, loop)
+│   └── .opencode/tool/            # 14 tools (auto-discovered by OpenCode)
+├── apps/
+│   └── dashboard/                 # Next.js 15 observability dashboard
+├── config/                        # Config files + system prompt
+├── agent-docs/                    # AI development guidance
+└── ARCHITECTURE.md                # System design
 ```
 
 ## Keeping Docs in Sync
@@ -226,14 +242,12 @@ fern/
 When making changes to the project, update all files that describe the affected functionality. The following files overlap in content and must stay consistent:
 
 - **CLAUDE.md** (this file) — Current status, key files, patterns, project structure
-- **README.md** — Current functionality, quick start, project structure, planned features
+- **README.md** — Current functionality, quick start, project structure
 - **ARCHITECTURE.md** — System design, layer descriptions
-- **IMPLEMENTATION_PLAN.md** — Phase checklists, roadmap
 
 After any significant change, check whether these need updating:
 - New/removed/renamed files → Key Files table, Project Structure tree (both here and README)
 - New tools or endpoints → Current Status section (both here and README)
-- Phase completion or new phase work → Current Status here, Current Functionality in README, checklist in IMPLEMENTATION_PLAN
 - New patterns or conventions → Patterns Established section here
 - New agent-docs → Agent Docs table here
 

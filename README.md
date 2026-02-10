@@ -10,12 +10,12 @@ A self-improving headless AI agent that operates across multiple messaging chann
 
 ## Current Functionality
 
-Phase 1 MVP + Phase 2 Self-Improvement + Phase 3 Memory + Phase 5 Scheduling:
+All core phases complete (MVP, Self-Improvement, Memory, Observability, Scheduling):
 
 - **Agent Loop**: OpenCode SDK-powered message → LLM → tool execution → response cycle
 - **Session Storage**: OpenCode file-based storage in `~/.local/share/opencode/storage/`
 - **Tools**: `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + `send_message` + built-in coding tools (read, edit, write, bash, glob, grep)
-- **HTTP API**: Hono server with `/health`, `/chat`, and `/webhooks/whatsapp` endpoints
+- **HTTP API**: Hono server with `/health`, `/chat`, `/webhooks/whatsapp`, and `/api/*` dashboard endpoints
 - **WhatsApp Channel**: Twilio-based WhatsApp integration with webhook
 - **Dynamic System Prompt**: Personality, tool descriptions, and self-improvement workflow from `config/SYSTEM_PROMPT.md`
 - **Self-Improvement Loop**: Agent can clone repos, modify code in isolated workspaces, run tests, and create PRs via GitHub App
@@ -23,6 +23,7 @@ Phase 1 MVP + Phase 2 Self-Improvement + Phase 3 Memory + Phase 5 Scheduling:
 - **GitHub Integration**: Authenticated via GitHub App, PRs created as "Fern" bot
 - **Memory System**: SQLite + sqlite-vec powered memory with OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` for facts/preferences/learnings. Hybrid vector + FTS5 search (`memory_search` → `memory_read`)
 - **Scheduling**: SQLite job queue with background polling loop. `schedule` tool creates one-shot or recurring (cron) jobs. Each job stores a self-contained prompt that fires a fresh agent session with full tool access. `send_message` tool enables proactive outbound messaging to any channel.
+- **Observability Dashboard**: Next.js 15 app (`apps/dashboard/`) with views for sessions, memory, tool analytics, GitHub PRs, and cost tracking. Backed by a public dashboard API on the Fern server.
 - **Configuration**: JSON5 config + .env support for API keys, GitHub App credentials, and memory settings
 
 ### Quick Start
@@ -83,31 +84,24 @@ curl -X POST http://localhost:4000/chat \
 
 ---
 
-## Planned Features
-
-- **Memory System**: Phase 3 complete. Next: cross-session auto-recall, memory decay/consolidation
-- **Observability**: Tool execution logging, session metadata, cost tracking (Phase 4)
-- **Tool Enhancements**: Parallel read execution, result caching, background task execution, parallel subagent spawning (Phase 6)
-- **Multi-Channel Support**: WebChat, additional messaging platforms (Phase 7)
-- **Advanced Features**: Provider failover, cost tracking, permission system (Phase 8)
-
 ## Project Structure
 
 ```
-fern/
+fern/                          # pnpm monorepo
 ├── src/
-│   ├── index.ts        # Entry point
-│   ├── core/           # Agent loop
-│   ├── config/         # Configuration loading
-│   ├── storage/        # JSONL session storage
-│   ├── tools/          # Tool definitions
-│   ├── server/         # HTTP server (Hono)
-│   ├── channels/       # Channel adapters (WhatsApp via Twilio)
-│   ├── memory/         # Async archival layer (observer, storage, search)
-│   └── scheduler/      # Job scheduling (types, config, db, loop)
-├── config/             # Configuration files
-├── agent-docs/         # AI development guidance
-└── ARCHITECTURE.md     # System design with diagrams
+│   ├── index.ts               # Entry point
+│   ├── core/                  # Agent loop, GitHub service, workspace management
+│   ├── config/                # Configuration loading
+│   ├── server/                # HTTP server (Hono), dashboard API, internal APIs
+│   ├── channels/              # Channel adapters (WhatsApp via Twilio)
+│   ├── memory/                # Async archival, persistent memory, hybrid search
+│   ├── scheduler/             # Job scheduling (types, config, db, loop)
+│   └── .opencode/tool/        # 14 tools (auto-discovered by OpenCode)
+├── apps/
+│   └── dashboard/             # Next.js 15 observability dashboard
+├── config/                    # Configuration files + system prompt
+├── agent-docs/                # AI development guidance
+└── ARCHITECTURE.md            # System design with diagrams
 ```
 
 ## Development Setup
@@ -122,7 +116,7 @@ Requirements:
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md) - Detailed system design with diagrams
-- [Implementation Plan](IMPLEMENTATION_PLAN.md) - Phased roadmap
+
 - [Agent Docs](agent-docs/) - Guides for AI-assisted development
 
 ## Key Design Decisions
@@ -130,15 +124,15 @@ Requirements:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Core runtime | Single Node process | Simplicity, no distributed state |
-| Session storage | JSONL files | Human-readable, append-only, IS the log |
+| Session storage | OpenCode file-based | Managed by OpenCode SDK, tracks diffs/parts/messages |
+| Tool system | OpenCode auto-discovery + HTTP proxy | Auto-loaded from `.opencode/tool/`, native modules via internal API |
 | Memory (archival) | Async observer + JSON chunks + SQLite + embeddings | Captures history before compaction, two-phase retrieval |
 | Memory (persistent) | SQLite + sqlite-vec + OpenAI embeddings | Agent-writable, vector-searchable facts/preferences/learnings |
 | Scheduling | SQLite + setInterval + PQueue | Prompt-based jobs, agent autonomy, no external deps |
-| Parallelism | Read/write classification | Simple, no graph complexity |
-| Caching | LRU with write-invalidation | Easy wins, no stale data |
 | Channels | Adapter pattern | Add channels without core changes |
 | Self-improvement | PR-only, no direct merge | Safety boundary, human in loop |
-| Observability | UI over JSONL | No extra logging, data already structured |
+| Observability | Dashboard API + Next.js app | Reads from existing stores, no separate logging |
+| Monorepo | pnpm workspaces | Root (agent) + apps/dashboard |
 
 ## License
 

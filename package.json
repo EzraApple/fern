@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node --env-file=.env dist/index.js",
+    "start": "tsc && node --env-file=.env dist/index.js",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
@@ -23,7 +23,7 @@
     "test:core-tools": "vitest run src/core/agent src/core/prompt src/config/",
     "test:scheduler": "vitest run src/scheduler/ src/server/scheduler-api src/server/channel-api",
     "ci": "pnpm run lint && pnpm run tsc",
-    "memory:wipe": "rm -rf ~/.fern/memory && echo 'Memory wiped (DB + archives).'",
+    "memory:wipe": "rm -rf ~/.fern/memory ~/.fern/sessions ~/.local/share/opencode/storage && echo 'Full wipe: memory DB, archives, sessions, OpenCode storage.'",
     "dashboard": "pnpm --filter @fern/dashboard dev",
     "dashboard:build": "pnpm --filter @fern/dashboard build"
   },

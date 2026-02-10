@@ -7,6 +7,7 @@ export interface Config {
   model: {
     provider: string;
     model: string;
+    baseUrl?: string;
   };
   storage: {
     path: string;
@@ -92,9 +93,19 @@ export function loadConfig(): Config {
     config.server.port = Number.parseInt(process.env["FERN_PORT"], 10);
   }
   // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  if (process.env["FERN_MODEL_PROVIDER"]) {
+    // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+    config.model.provider = process.env["FERN_MODEL_PROVIDER"];
+  }
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
   if (process.env["FERN_MODEL"]) {
     // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
     config.model.model = process.env["FERN_MODEL"];
+  }
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  if (process.env["FERN_MODEL_BASE_URL"]) {
+    // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+    config.model.baseUrl = process.env["FERN_MODEL_BASE_URL"];
   }
   // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
   if (process.env["FERN_STORAGE_PATH"]) {
@@ -147,6 +158,11 @@ export function getOpenAIApiKey(): string {
     throw new Error("OPENAI_API_KEY environment variable is not set");
   }
   return key;
+}
+
+export function getMoonshotApiKey(): string | undefined {
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  return process.env["MOONSHOT_API_KEY"];
 }
 
 export interface TwilioCredentials {

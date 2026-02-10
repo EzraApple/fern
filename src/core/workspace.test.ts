@@ -287,7 +287,7 @@ describe("workspace", () => {
       expect(workspace).not.toBeNull();
 
       // Manually backdate the workspace so it appears stale
-      workspace!.createdAt = Date.now() - 200_000;
+      (workspace as NonNullable<typeof workspace>).createdAt = Date.now() - 200_000;
 
       // Mock filesystem operations
       vi.mocked(fs.existsSync).mockReturnValue(true);

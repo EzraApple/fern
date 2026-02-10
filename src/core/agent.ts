@@ -1,5 +1,6 @@
 import { onTurnComplete } from "../memory/index.js";
 import * as opencodeService from "./opencode-service.js";
+import { AgentTimeoutError } from "./opencode-service.js";
 import { buildSystemPrompt } from "./prompt.js";
 import type { AgentInput, AgentResult, ToolCallRecord } from "./types.js";
 
@@ -58,6 +59,18 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     };
   } catch (error) {
+    if (error instanceof AgentTimeoutError) {
+      console.error(
+        `[Agent] Turn timed out — threadId: ${input.sessionId}, openCodeSession: ${sessionId}, elapsed: ${error.elapsedMs}ms`
+      );
+      return {
+        sessionId: input.sessionId,
+        response:
+          "Sorry, I took too long to respond and timed out. Please try again or simplify your request.",
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      };
+    }
+
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[Agent] Error:", errorMessage);
 

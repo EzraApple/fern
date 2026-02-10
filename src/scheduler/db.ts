@@ -178,6 +178,30 @@ export function deleteJob(id: string): boolean {
   return result.changes > 0;
 }
 
+/** Atomically claim a job: pending -> running. Returns true if claimed. */
+export function claimJob(id: string): boolean {
+  const d = getDb();
+  const now = new Date().toISOString();
+  const result = d
+    .prepare(
+      "UPDATE scheduled_jobs SET status = 'running', updated_at = ? WHERE id = ? AND status = 'pending'"
+    )
+    .run(now, id);
+  return result.changes === 1;
+}
+
+/** Reset stale running jobs to pending (e.g. after crash recovery) */
+export function recoverStaleJobs(): number {
+  const d = getDb();
+  const now = new Date().toISOString();
+  const result = d
+    .prepare(
+      "UPDATE scheduled_jobs SET status = 'pending', updated_at = ? WHERE status = 'running'"
+    )
+    .run(now);
+  return result.changes;
+}
+
 /** Generate a new job ID */
 export function generateJobId(): string {
   return `job_${ulid()}`;

@@ -148,6 +148,7 @@ describe("onTurnComplete", () => {
       totalArchivedTokens: 90,
       totalChunks: 1,
       lastArchivedAt: "2024-01-01T00:00:00.000Z",
+      openCodeSessionId: "sess-1",
     };
     mockReadWatermark.mockReturnValueOnce(watermark);
 
@@ -229,6 +230,7 @@ describe("onTurnComplete", () => {
       totalArchivedTokens: 90,
       totalChunks: 1,
       lastArchivedAt: "2024-01-01T00:00:00.000Z",
+      openCodeSessionId: "sess-1",
     };
     mockReadWatermark.mockReturnValueOnce(existingWatermark);
 
@@ -313,12 +315,13 @@ describe("onTurnComplete", () => {
   it("does not archive when all messages are already archived", async () => {
     const messages = [makeMsg("msg-1", 60), makeMsg("msg-2", 60)];
     mockGetSessionMessages.mockResolvedValueOnce(messages);
-    const watermark = {
+    const watermark: ArchiveWatermark = {
       lastArchivedMessageIndex: 1,
       lastArchivedMessageId: "msg-2",
       totalArchivedTokens: 120,
       totalChunks: 1,
       lastArchivedAt: "2024-01-01T00:00:00.000Z",
+      openCodeSessionId: "sess-1",
     };
     mockReadWatermark.mockReturnValueOnce(watermark);
 

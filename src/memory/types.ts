@@ -63,6 +63,8 @@ export interface ArchiveWatermark {
   totalArchivedTokens: number;
   totalChunks: number;
   lastArchivedAt: string;
+  /** OpenCode session this watermark applies to. If the session changes, archival resets to index 0. */
+  openCodeSessionId?: string;
 }
 
 /** Entry in the summary search index (one per chunk) */

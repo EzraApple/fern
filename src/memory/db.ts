@@ -389,7 +389,7 @@ async function migrateFromJsonl(): Promise<void> {
 
   // Insert all entries
   for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i]!;
+    const entry = entries[i] as SummaryIndexEntry;
     const embedding = embeddings[i] ?? [];
     insertSummary(entry, embedding);
   }

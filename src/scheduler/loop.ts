@@ -2,7 +2,13 @@ import { CronExpressionParser } from "cron-parser";
 import PQueue from "p-queue";
 import { runAgentLoop } from "../core/agent.js";
 import { getSchedulerConfig } from "./config.js";
-import { advanceRecurringJob, getDueJobs, updateJobStatus } from "./db.js";
+import {
+  advanceRecurringJob,
+  claimJob,
+  getDueJobs,
+  recoverStaleJobs,
+  updateJobStatus,
+} from "./db.js";
 import type { ScheduledJob } from "./types.js";
 
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -13,6 +19,12 @@ export function startSchedulerLoop(): void {
   if (!config.enabled) {
     console.info("[Scheduler] Disabled via config");
     return;
+  }
+
+  // Recover any jobs stuck in 'running' from a previous crash
+  const recovered = recoverStaleJobs();
+  if (recovered > 0) {
+    console.info(`[Scheduler] Recovered ${recovered} stale running job(s) → pending`);
   }
 
   executionQueue = new PQueue({ concurrency: config.maxConcurrentJobs });
@@ -48,6 +60,10 @@ export async function tick(): Promise<void> {
 
   const dueJobs = getDueJobs(now, config.maxConcurrentJobs);
   for (const job of dueJobs) {
+    // Atomic claim: only execute if we successfully transition pending -> running
+    if (!claimJob(job.id)) {
+      continue;
+    }
     executionQueue?.add(() => executeJob(job));
   }
 }
@@ -55,8 +71,6 @@ export async function tick(): Promise<void> {
 /** Execute a single scheduled job */
 export async function executeJob(job: ScheduledJob): Promise<void> {
   console.info(`[Scheduler] Executing job ${job.id}: "${job.prompt.slice(0, 60)}..."`);
-
-  updateJobStatus(job.id, "running");
 
   try {
     const result = await runAgentLoop({
@@ -81,8 +95,6 @@ export async function executeJob(job: ScheduledJob): Promise<void> {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`[Scheduler] Job ${job.id} failed: ${msg}`);
-    updateJobStatus(job.id, "failed", {
-      lastError: msg,
-    });
+    updateJobStatus(job.id, "failed", { lastError: msg });
   }
 }

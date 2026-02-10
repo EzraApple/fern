@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies before importing
-vi.mock("./opencode-service.js", () => ({
-  getOrCreateSession: vi.fn(),
-  listTools: vi.fn(),
-  subscribeToEvents: vi.fn(),
-  prompt: vi.fn(),
-  getLastResponse: vi.fn(),
-  getSessionMessages: vi.fn(),
-}));
+vi.mock("./opencode-service.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./opencode-service.js")>();
+  return {
+    ...actual,
+    getOrCreateSession: vi.fn(),
+    listTools: vi.fn(),
+    subscribeToEvents: vi.fn(),
+    prompt: vi.fn(),
+    getLastResponse: vi.fn(),
+    getSessionMessages: vi.fn(),
+  };
+});
 
 vi.mock("./prompt.js", () => ({
   buildSystemPrompt: vi.fn(),

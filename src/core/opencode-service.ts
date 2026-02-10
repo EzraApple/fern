@@ -63,6 +63,9 @@ function cleanupStaleThreadSessions(): void {
   }
 }
 
+// Agent turn timeout (default 8 minutes)
+const AGENT_TURN_TIMEOUT_MS = Number(process.env.FERN_AGENT_TURN_TIMEOUT_MS) || 480_000;
+
 // Port range for server
 const PORT_START = 4096;
 const PORT_END = 4300;
@@ -304,6 +307,21 @@ const sessionCompletionCallbacks = new Map<
 >();
 
 /**
+ * Typed error for agent turn timeouts
+ */
+export class AgentTimeoutError extends Error {
+  public readonly sessionId: string;
+  public readonly elapsedMs: number;
+
+  constructor(sessionId: string, elapsedMs: number) {
+    super(`Agent turn timed out after ${Math.round(elapsedMs / 1000)}s (session: ${sessionId})`);
+    this.name = "AgentTimeoutError";
+    this.sessionId = sessionId;
+    this.elapsedMs = elapsedMs;
+  }
+}
+
+/**
  * Signal that a session has completed (called from event handler)
  */
 export function signalSessionComplete(sessionId: string): void {
@@ -338,10 +356,24 @@ export async function prompt(
   }
 ): Promise<void> {
   const client = await getClient();
+  const startTime = Date.now();
 
   // Create completion promise
   const completionPromise = new Promise<void>((resolve, reject) => {
     sessionCompletionCallbacks.set(sessionId, { resolve, reject });
+  });
+
+  // Create timeout promise
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      sessionCompletionCallbacks.delete(sessionId);
+      const elapsed = Date.now() - startTime;
+      console.error(
+        `[OpenCode] Agent turn timed out — session: ${sessionId}, elapsed: ${Math.round(elapsed / 1000)}s`
+      );
+      reject(new AgentTimeoutError(sessionId, elapsed));
+    }, AGENT_TURN_TIMEOUT_MS);
   });
 
   const agentToUse = options?.agent ?? "fern";
@@ -357,12 +389,14 @@ export async function prompt(
       },
     });
 
-    // Wait for completion (signaled by event handler when session.idle is received)
-    await completionPromise;
+    // Wait for completion or timeout
+    await Promise.race([completionPromise, timeoutPromise]);
   } catch (error) {
     console.error("[OpenCode] Prompt failed:", error);
     sessionCompletionCallbacks.delete(sessionId);
     throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
   }
 }
 

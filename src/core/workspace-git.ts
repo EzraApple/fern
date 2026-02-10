@@ -1,20 +1,20 @@
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { GitCommit, WorkspaceInfo } from "../types/workspace.js";
 import { getAuthenticatedCloneUrl } from "./github-service.js";
 import { updateWorkspaceBranch } from "./workspace.js";
 
-const execPromise = promisify(exec);
+const execFilePromise = promisify(execFile);
 
 /**
- * Execute a git command in the workspace directory
+ * Execute a git command in the workspace directory using argv arrays (no shell).
  */
 async function gitCmd(
   workspacePath: string,
-  command: string
+  args: string[]
 ): Promise<{ stdout: string; stderr: string }> {
   try {
-    const result = await execPromise(`git ${command}`, {
+    const result = await execFilePromise("git", args, {
       cwd: workspacePath,
     });
     return result;
@@ -33,7 +33,7 @@ export async function createBranch(workspace: WorkspaceInfo, branchName: string)
   console.info(`[Workspace] Creating branch ${branchName} in workspace ${workspace.id}`);
 
   try {
-    await gitCmd(workspace.path, `checkout -b ${branchName}`);
+    await gitCmd(workspace.path, ["checkout", "-b", branchName]);
     updateWorkspaceBranch(workspace.id, branchName);
 
     console.info(`[Workspace] Created branch ${branchName}`);
@@ -53,25 +53,24 @@ export async function commitChanges(workspace: WorkspaceInfo, message: string): 
 
   try {
     // Stage all changes
-    await gitCmd(workspace.path, "add -A");
+    await gitCmd(workspace.path, ["add", "-A"]);
 
     // Check if there are changes to commit
-    const statusResult = await gitCmd(workspace.path, "status --porcelain");
+    const statusResult = await gitCmd(workspace.path, ["status", "--porcelain"]);
     if (!statusResult.stdout.trim()) {
       throw new Error("No changes to commit");
     }
 
     // Configure git user if not set (use Fern identity)
     try {
-      await gitCmd(workspace.path, 'config user.name "Fern"');
-      await gitCmd(workspace.path, 'config user.email "fern@anthropic.com"');
+      await gitCmd(workspace.path, ["config", "user.name", "Fern"]);
+      await gitCmd(workspace.path, ["config", "user.email", "fern@anthropic.com"]);
     } catch {
       // Ignore errors - user might already be configured
     }
 
-    // Commit with message
-    const escapedMessage = message.replace(/"/g, '\\"');
-    const commitResult = await gitCmd(workspace.path, `commit -m "${escapedMessage}"`);
+    // Commit with message (passed as separate arg, no shell escaping needed)
+    const commitResult = await gitCmd(workspace.path, ["commit", "-m", message]);
 
     // Extract commit hash
     const hashMatch = commitResult.stdout.match(/\[[\w-]+ ([a-f0-9]+)\]/);
@@ -106,9 +105,9 @@ export async function pushBranch(workspace: WorkspaceInfo, remote = "origin"): P
   try {
     // Refresh remote URL with a fresh GitHub App token (tokens expire ~1hr)
     const freshUrl = await getAuthenticatedCloneUrl(workspace.repoUrl);
-    await gitCmd(workspace.path, `remote set-url ${remote} "${freshUrl}"`);
+    await gitCmd(workspace.path, ["remote", "set-url", remote, freshUrl]);
 
-    await gitCmd(workspace.path, `push -u ${remote} ${workspace.branch}`);
+    await gitCmd(workspace.path, ["push", "-u", remote, workspace.branch]);
 
     console.info(`[Workspace] Pushed branch ${workspace.branch}`);
   } catch (error) {
@@ -123,7 +122,7 @@ export async function pushBranch(workspace: WorkspaceInfo, remote = "origin"): P
  * Get current branch name
  */
 export async function getCurrentBranch(workspacePath: string): Promise<string> {
-  const result = await gitCmd(workspacePath, "branch --show-current");
+  const result = await gitCmd(workspacePath, ["branch", "--show-current"]);
   return result.stdout?.trim() || "";
 }
 
@@ -131,6 +130,6 @@ export async function getCurrentBranch(workspacePath: string): Promise<string> {
  * Check if workspace has uncommitted changes
  */
 export async function hasUncommittedChanges(workspacePath: string): Promise<boolean> {
-  const result = await gitCmd(workspacePath, "status --porcelain");
+  const result = await gitCmd(workspacePath, ["status", "--porcelain"]);
   return result.stdout.trim().length > 0;
 }

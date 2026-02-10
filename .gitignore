@@ -28,7 +28,7 @@ Thumbs.db
 logs/
 
 # Runtime data
-sessions/
+/sessions/
 /memory/
 workspaces/
 

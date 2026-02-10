@@ -356,14 +356,61 @@ This gives the agent "perfect recall" — search summaries for relevant history,
 
 ---
 
-## Scheduling System
+## Layer 8: Scheduling System (✅ IMPLEMENTED)
 
-The core runtime includes a scheduler for deferred work:
+```
+┌─────────────────────────────────────────────────────────────┐
+│               SCHEDULING SYSTEM                              │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              Schedule Tool                           │    │
+│  │                                                      │    │
+│  │   schedule(prompt, scheduledAt|delayMs|cronExpr)     │    │
+│  │   schedule_list(status?, limit?)                     │    │
+│  │   schedule_cancel(jobId)                             │    │
+│  │                                                      │    │
+│  │   Calls /internal/scheduler/* via fetch()            │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                           │                                  │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              SQLite Job Queue                        │    │
+│  │              (scheduled_jobs table in fern.db)       │    │
+│  │                                                      │    │
+│  │   Jobs: id, type, status, prompt, scheduled_at,     │    │
+│  │         cron_expr, metadata, last_run_response      │    │
+│  │                                                      │    │
+│  │   Types: one_shot | recurring                        │    │
+│  │   Status: pending → running → completed|failed       │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                           │                                  │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              Scheduler Loop                          │    │
+│  │                                                      │    │
+│  │   setInterval (60s) → query due jobs                 │    │
+│  │   PQueue (concurrency: 3) → executeJob()             │    │
+│  │   executeJob: runAgentLoop(fresh session, job.prompt) │    │
+│  │   Recurring: cron-parser → compute next → reset      │    │
+│  │   First tick on startup catches overdue jobs          │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                           │                                  │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              send_message Tool                       │    │
+│  │                                                      │    │
+│  │   Proactive outbound messaging to any channel        │    │
+│  │   Calls /internal/channel/send → adapter.send()      │    │
+│  │   Enables scheduled jobs to reach users              │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
 
-- **schedule tool**: Writes to a job queue (JSONL or SQLite)
-- **Scheduler loop**: Checks every minute, triggers sessions when due
-- **Use cases**: Reminders, follow-ups, periodic self-reviews, "check on PR #42 tomorrow"
-- **Calendar integration**: Another channel adapter that reads/writes events and triggers the same job queue
+**Prompt-Based Jobs**: Each job stores a self-contained prompt. When fired, a fresh agent session runs with that prompt and full tool access. The agent decides what to do — send messages, create PRs, search memory, etc.
+
+**No Retry Logic**: Jobs either complete or fail. The agent or user can reschedule if needed.
+
+**Use Cases**: Reminders ("message me at 9am"), follow-ups ("check PR #42 in 2 hours"), recurring tasks ("weekly self-review" via cron)
 
 ---
 
@@ -439,6 +486,7 @@ User sends "help me optimize the memory search function" via Telegram
 | Caching | LRU with write-invalidation | Easy wins, no stale data |
 | Channels | Adapter pattern | Add channels without core changes |
 | Self-improvement | PR-only, no direct merge | Safety boundary, human in loop |
+| Scheduling | Prompt-based jobs + SQLite + setInterval | Agent autonomy, no external deps, survives restarts |
 | Observability | UI over JSONL | No extra logging, data already structured |
 | Streaming | Capability-based | Stream where useful, block where not |
 | Permissions | Profile + path + channel layers | Flexible without complexity |
@@ -448,8 +496,11 @@ User sends "help me optimize the memory search function" via Telegram
 ## Technology Stack
 
 - **Runtime**: Node.js 22+ (TypeScript)
-- **LLM SDK**: Vercel AI SDK v5 or similar
-- **Vector Store**: LanceDB
+- **LLM SDK**: OpenCode SDK (embedded server + client)
+- **Database**: SQLite via better-sqlite3 (memory, scheduling)
+- **Vector Store**: sqlite-vec (vector similarity search)
+- **Embeddings**: OpenAI text-embedding-3-small
 - **Schema Validation**: Zod
-- **HTTP Server**: Hono (for webhooks, API)
-- **Channels**: Twilio (WhatsApp), grammyjs (Telegram, planned), custom WebSocket (WebChat, planned)
+- **HTTP Server**: Hono (webhooks, API, internal endpoints)
+- **Scheduling**: cron-parser v5, p-queue
+- **Channels**: Twilio (WhatsApp), custom WebSocket (WebChat, planned)

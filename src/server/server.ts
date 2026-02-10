@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
 import { runAgentLoop } from "../core/index.js";
+import { createDashboardApi } from "./dashboard-api.js";
 import { createMemoryApi } from "./memory-api.js";
 import { createWhatsAppWebhookRoutes } from "./webhooks.js";
 
@@ -65,6 +66,9 @@ export function createServer(options?: ServerOptions) {
 
   // Mount internal memory API
   app.route("/internal/memory", createMemoryApi());
+
+  // Mount dashboard API
+  app.route("/api", createDashboardApi());
 
   // Mount WhatsApp webhook if adapter is available
   if (options?.whatsappAdapter) {

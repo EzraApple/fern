@@ -239,6 +239,49 @@ export async function getPRStatus(prNumber: number, repoInput: string): Promise<
 }
 
 /**
+ * List pull requests for a repository
+ */
+export async function listPRs(
+  repoInput: string,
+  state: "open" | "closed" | "all" = "all"
+): Promise<
+  Array<{
+    number: number;
+    title: string;
+    state: string;
+    url: string;
+    createdAt: string;
+    updatedAt: string;
+    user: string;
+    branch: string;
+  }>
+> {
+  const octokit = await getOctokit();
+  const { owner, repo } = parseRepo(repoInput);
+
+  const response = await octokit.request("GET /repos/{owner}/{repo}/pulls", {
+    owner,
+    repo,
+    state,
+    per_page: 30,
+    sort: "updated",
+    direction: "desc",
+  });
+
+  // biome-ignore lint/suspicious/noExplicitAny: GitHub API response type
+  return response.data.map((pr: any) => ({
+    number: pr.number,
+    title: pr.title,
+    state: pr.state,
+    url: pr.html_url,
+    createdAt: pr.created_at,
+    updatedAt: pr.updated_at,
+    user: pr.user?.login || "unknown",
+    branch: pr.head?.ref || "",
+  }));
+}
+
+/**
  * Reset cached Octokit instance (for testing or config changes)
  */
 export function resetOctokit(): void {

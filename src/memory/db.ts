@@ -232,6 +232,53 @@ export function listMemories(options?: {
   }));
 }
 
+/** List summaries with optional thread filter */
+export function listSummaries(options?: {
+  threadId?: string;
+  limit?: number;
+}): Array<{
+  id: string;
+  threadId: string;
+  summary: string;
+  tokenCount: number;
+  createdAt: string;
+  timeStart: number;
+  timeEnd: number;
+}> {
+  const d = getDb();
+  const limit = options?.limit ?? 100;
+
+  let sql = "SELECT * FROM summaries";
+  const params: (string | number | null)[] = [];
+
+  if (options?.threadId) {
+    sql += " WHERE thread_id = ?";
+    params.push(options.threadId);
+  }
+  sql += " ORDER BY time_end DESC LIMIT ?";
+  params.push(limit);
+
+  const rows = d.prepare(sql).all(...params) as Array<{
+    id: string;
+    thread_id: string;
+    summary: string;
+    token_count: number;
+    created_at: string;
+    time_start: number;
+    time_end: number;
+  }>;
+
+  return rows.map((row) => ({
+    id: row.id,
+    threadId: row.thread_id,
+    summary: row.summary,
+    tokenCount: row.token_count,
+    createdAt: row.created_at,
+    timeStart: row.time_start,
+    timeEnd: row.time_end,
+  }));
+}
+
 // ── Schema creation ────────────────────────────────────────────────────────
 
 function createSchema(database: Database.Database): void {

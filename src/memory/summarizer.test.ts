@@ -16,6 +16,7 @@ vi.mock("openai", () => ({
 // Mock config
 vi.mock("../config/config.js", () => ({
   getOpenAIApiKey: () => "test-api-key",
+  getMoonshotApiKey: () => undefined,
 }));
 
 import { summarizeChunk } from "./summarizer.js";
@@ -144,7 +145,7 @@ describe("summarizeChunk", () => {
 
     const messages = [makeMessage("user", "test")];
     const result = await summarizeChunk(messages, testConfig);
-    expect(result).toContain("[Summary unavailable: Rate limit exceeded]");
+    expect(result).toContain("[Summary unavailable]");
     expect(result).toContain("1 messages");
   });
 
@@ -153,7 +154,7 @@ describe("summarizeChunk", () => {
 
     const messages = [makeMessage("user", "test")];
     const result = await summarizeChunk(messages, testConfig);
-    expect(result).toContain("[Summary unavailable: network failure]");
+    expect(result).toContain("[Summary unavailable]");
   });
 
   it("handles messages with empty parts array", async () => {

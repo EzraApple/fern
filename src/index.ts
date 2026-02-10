@@ -4,6 +4,7 @@
  * Entry point for the Fern agent runtime.
  */
 
+import { execSync } from "node:child_process";
 import { serve } from "@hono/node-server";
 import { WhatsAppAdapter } from "./channels/index.js";
 import type { ChannelAdapter } from "./channels/types.js";
@@ -26,6 +27,13 @@ async function main() {
   // Clean up stale workspaces from previous runs
   console.info("Cleaning up stale workspaces...");
   workspace.cleanupStaleWorkspaces(24 * 60 * 60 * 1000); // 24 hours
+
+  // Kill stale opencode processes from previous runs
+  try {
+    execSync("pkill -f 'opencode serve' 2>/dev/null", { stdio: "ignore" });
+  } catch {
+    // No stale processes — expected
+  }
 
   // Initialize OpenCode server
   console.info("Initializing OpenCode server...");
@@ -61,20 +69,46 @@ async function main() {
 `);
 
   console.info(`Starting server on ${config.server.host}:${config.server.port}`);
-  console.info(`Using model: ${config.model.provider}/${config.model.model}`);
+  console.info(
+    `Using model: ${config.model.provider}/${config.model.model}${config.model.baseUrl ? ` (via ${config.model.baseUrl})` : ""}`
+  );
   if (whatsappAdapter) {
     console.info("WhatsApp: enabled (Twilio)");
   }
   console.info("");
 
   // Setup cleanup handlers
+  let shuttingDown = false;
   const cleanup = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
     console.info("\nShutting down...");
+
+    console.info("  Stopping scheduler...");
     stopScheduler();
+    console.info("  ✓ Scheduler stopped");
+
+    console.info("  Closing memory database...");
     closeDb();
+    console.info("  ✓ Memory database closed");
+
+    console.info("  Cleaning up workspaces...");
     workspace.cleanupAllWorkspaces();
+    console.info("  ✓ Workspaces cleaned");
+
+    console.info("  Stopping OpenCode server...");
     await opencodeService.cleanup();
-    console.info("✓ Cleanup complete");
+    console.info("  ✓ OpenCode server stopped");
+
+    // Kill any orphaned opencode child processes
+    try {
+      execSync("pkill -f 'opencode serve' 2>/dev/null", { stdio: "ignore" });
+    } catch {
+      // No orphans — expected
+    }
+
+    console.info("✓ Shutdown complete");
     process.exit(0);
   };
 

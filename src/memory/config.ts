@@ -55,6 +55,12 @@ export function getMemoryConfig(): MemoryArchivalConfig {
   }
 
   // biome-ignore lint/complexity/useLiteralKeys: env var access
+  const memoryBaseUrl = process.env["FERN_MEMORY_BASE_URL"];
+  if (memoryBaseUrl) {
+    config.summarizationBaseUrl = memoryBaseUrl;
+  }
+
+  // biome-ignore lint/complexity/useLiteralKeys: env var access
   const embeddingModel = process.env["FERN_MEMORY_EMBEDDING_MODEL"];
   if (embeddingModel) {
     config.embeddingModel = embeddingModel;

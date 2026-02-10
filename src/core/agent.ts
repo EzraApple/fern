@@ -72,7 +72,15 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
     }
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[Agent] Error:", errorMessage);
+    const isMoonshotFailure =
+      errorMessage.includes("moonshot") ||
+      errorMessage.includes("api.moonshot.ai") ||
+      errorMessage.includes("ProviderAuth");
+    if (isMoonshotFailure) {
+      console.error("[Agent] Moonshot provider failure detected:", errorMessage);
+    } else {
+      console.error("[Agent] Error:", errorMessage);
+    }
 
     return {
       sessionId: input.sessionId,

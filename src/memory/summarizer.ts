@@ -1,14 +1,31 @@
 import OpenAI from "openai";
-import { getOpenAIApiKey } from "../config/config.js";
+import { getMoonshotApiKey, getOpenAIApiKey } from "../config/config.js";
 import type { MemoryArchivalConfig, OpenCodeMessage } from "./types.js";
 
-let openaiClient: OpenAI | null = null;
+let primaryClient: OpenAI | null = null;
+let fallbackClient: OpenAI | null = null;
+let initialized = false;
 
-function getOpenAI(): OpenAI {
-  if (!openaiClient) {
-    openaiClient = new OpenAI({ apiKey: getOpenAIApiKey() });
+function initClients(config: MemoryArchivalConfig): void {
+  if (initialized) return;
+
+  const moonshotKey = getMoonshotApiKey();
+
+  if (moonshotKey && config.summarizationModel.startsWith("kimi")) {
+    // Primary: Moonshot (OpenAI-compatible)
+    primaryClient = new OpenAI({
+      apiKey: moonshotKey,
+      baseURL: config.summarizationBaseUrl ?? "https://api.moonshot.ai/v1",
+    });
+    // Fallback: OpenAI
+    fallbackClient = new OpenAI({ apiKey: getOpenAIApiKey() });
+  } else {
+    // No Moonshot — OpenAI is primary, no fallback needed
+    primaryClient = new OpenAI({ apiKey: getOpenAIApiKey() });
+    fallbackClient = null;
   }
-  return openaiClient;
+
+  initialized = true;
 }
 
 const SUMMARIZATION_PROMPT = `You are a conversation summarizer for an AI agent's memory system. Your job is to produce a concise summary of a conversation chunk that will be used for future retrieval.
@@ -48,37 +65,58 @@ function formatMessagesForSummary(messages: OpenCodeMessage[]): string {
   return lines.join("\n");
 }
 
-/** Summarize a chunk of messages using gpt-4o-mini */
+/** Summarize a chunk of messages, with fallback from Moonshot to OpenAI */
 export async function summarizeChunk(
   messages: OpenCodeMessage[],
   config: MemoryArchivalConfig
 ): Promise<string> {
+  initClients(config);
   const conversationText = formatMessagesForSummary(messages);
+  const promptMessages: OpenAI.ChatCompletionMessageParam[] = [
+    { role: "system", content: SUMMARIZATION_PROMPT },
+    { role: "user", content: `Summarize this conversation chunk:\n\n${conversationText}` },
+  ];
 
+  // Try primary (Moonshot or OpenAI depending on config)
   try {
-    const client = getOpenAI();
-    const response = await client.chat.completions.create({
+    const response = await primaryClient?.chat.completions.create({
       model: config.summarizationModel,
       max_tokens: config.maxSummaryTokens,
-      messages: [
-        { role: "system", content: SUMMARIZATION_PROMPT },
-        {
-          role: "user",
-          content: `Summarize this conversation chunk:\n\n${conversationText}`,
-        },
-      ],
+      messages: promptMessages,
     });
 
-    const summary = response.choices[0]?.message?.content;
-    if (!summary) {
-      console.warn("[Memory] Summarization returned empty response");
-      return `[Summary unavailable] ${messages.length} messages, ${messages[0]?.role || "unknown"} to ${messages[messages.length - 1]?.role || "unknown"}`;
-    }
+    const summary = response?.choices[0]?.message?.content;
+    if (summary) return summary;
 
-    return summary;
+    console.warn("[Memory] Primary summarization returned empty response");
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.warn("[Memory] Summarization failed:", errorMsg);
-    return `[Summary unavailable: ${errorMsg}] ${messages.length} messages`;
+    console.warn(
+      `[Memory] Primary summarization failed (${config.summarizationModel}): ${errorMsg}`
+    );
   }
+
+  // Try fallback (OpenAI gpt-4o-mini) if available
+  if (fallbackClient) {
+    try {
+      console.info("[Memory] Falling back to OpenAI gpt-4o-mini for summarization");
+      const response = await fallbackClient.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_tokens: config.maxSummaryTokens,
+        messages: promptMessages,
+      });
+
+      const summary = response.choices[0]?.message?.content;
+      if (summary) return summary;
+
+      console.warn("[Memory] Fallback summarization returned empty response");
+    } catch (fallbackError) {
+      const fallbackMsg =
+        fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      console.warn(`[Memory] Fallback summarization also failed: ${fallbackMsg}`);
+    }
+  }
+
+  // Both failed
+  return `[Summary unavailable] ${messages.length} messages, ${messages[0]?.role || "unknown"} to ${messages[messages.length - 1]?.role || "unknown"}`;
 }

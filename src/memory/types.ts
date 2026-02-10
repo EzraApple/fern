@@ -113,6 +113,7 @@ export interface MemoryArchivalConfig {
   chunkTokenMin: number;
   chunkTokenMax: number;
   summarizationModel: string;
+  summarizationBaseUrl?: string;
   maxSummaryTokens: number;
   embeddingModel: string;
   dbPath: string;

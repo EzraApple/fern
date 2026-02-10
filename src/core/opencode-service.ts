@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createOpencodeClient, createOpencodeServer } from "@opencode-ai/sdk";
+import { getMoonshotApiKey, loadConfig } from "../config/config.js";
 
 /**
  * OpenCode Service for Fern
@@ -87,20 +88,83 @@ function findAvailablePort(): number {
 
 /**
  * OpenCode configuration for Fern
+ *
+ * Supports multiple LLM providers via env vars:
+ *   FERN_MODEL_PROVIDER=moonshot|openai (default: openai)
+ *   FERN_MODEL=kimi-k2.5|gpt-4o-mini|... (default: gpt-4o-mini)
+ *   MOONSHOT_API_KEY — required when provider is moonshot
+ *   OPENAI_API_KEY — always required (embeddings + fallback)
  */
 function getOpenCodeConfig() {
+  const config = loadConfig();
+  const moonshotKey = getMoonshotApiKey();
+
+  // Build provider configurations
+  const providerConfig: Record<
+    string,
+    {
+      api?: string;
+      options?: { apiKey?: string; baseURL?: string; [key: string]: unknown };
+      models?: Record<
+        string,
+        {
+          name?: string;
+          tool_call?: boolean;
+          attachment?: boolean;
+          reasoning?: boolean;
+          temperature?: boolean;
+          limit?: { context: number; output: number };
+        }
+      >;
+    }
+  > = {};
+
+  // Always register OpenAI (needed for embeddings + fallback)
+  providerConfig.openai = {
+    options: {
+      apiKey: process.env.OPENAI_API_KEY,
+    },
+  };
+
+  // Register Moonshot as OpenAI-compatible provider if API key is present
+  if (moonshotKey) {
+    providerConfig.moonshot = {
+      api: "openai",
+      options: {
+        apiKey: moonshotKey,
+        baseURL: "https://api.moonshot.ai/v1",
+      },
+      models: {
+        "kimi-k2.5": {
+          name: "Kimi K2.5 Preview",
+          tool_call: true,
+          attachment: false,
+          reasoning: false,
+          temperature: true,
+          limit: {
+            context: 131072,
+            output: 8192,
+          },
+        },
+      },
+    };
+  }
+
+  // Determine active model in "provider/model" format
+  const provider = config.model.provider;
+  const model = config.model.model;
+  const activeModel =
+    provider !== "openai" && moonshotKey ? `${provider}/${model}` : `openai/${model}`;
+
   return {
     // Auto-share sessions for debugging
     share: "auto" as const,
 
     // Provider configuration
-    provider: {
-      openai: {
-        options: {
-          apiKey: process.env.OPENAI_API_KEY,
-        },
-      },
-    },
+    provider: providerConfig,
+
+    // Active model
+    model: activeModel,
 
     // Default agent
     default_agent: "fern",

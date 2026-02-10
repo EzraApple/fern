@@ -5,7 +5,8 @@
     "src/.opencode/tool/**",
     "src/core/github-service.ts",
     "src/core/workspace-git.ts",
-    "src/core/workspace.ts"
+    "src/core/workspace.ts",
+    "apps/**"
   ],
   "ignoreDependencies": ["@octokit/app", "@octokit/rest", "@opencode-ai/plugin", "opencode-ai"]
 }

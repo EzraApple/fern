@@ -43,12 +43,7 @@ export interface AssistantMessage {
   };
 }
 
-export type Part =
-  | TextPart
-  | ToolPart
-  | ReasoningPart
-  | StepStartPart
-  | StepFinishPart;
+export type Part = TextPart | ToolPart | ReasoningPart | StepStartPart | StepFinishPart;
 
 export interface TextPart {
   id: string;

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { ArchiveBrowser } from "@/components/memory/ArchiveBrowser";
 import { MemoryList } from "@/components/memory/MemoryList";
 import { SearchInterface } from "@/components/memory/SearchInterface";
-import { ArchiveBrowser } from "@/components/memory/ArchiveBrowser";
 import { clsx } from "clsx";
+import { useState } from "react";
 
 const tabs = ["Memories", "Archives", "Search"] as const;
 type Tab = (typeof tabs)[number];
@@ -14,10 +14,7 @@ export default function MemoryPage() {
 
   return (
     <div>
-      <h1
-        className="text-2xl font-bold mb-6"
-        style={{ color: "var(--text-primary)" }}
-      >
+      <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--text-primary)" }}>
         Memory
       </h1>
 
@@ -28,16 +25,13 @@ export default function MemoryPage() {
       >
         {tabs.map((tab) => (
           <button
+            type="button"
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={clsx("px-4 py-1.5 rounded-md text-sm transition-colors")}
             style={{
-              backgroundColor:
-                activeTab === tab ? "var(--bg-hover)" : "transparent",
-              color:
-                activeTab === tab
-                  ? "var(--text-primary)"
-                  : "var(--text-secondary)",
+              backgroundColor: activeTab === tab ? "var(--bg-hover)" : "transparent",
+              color: activeTab === tab ? "var(--text-primary)" : "var(--text-secondary)",
             }}
           >
             {tab}

@@ -1,16 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import type { ToolPart as ToolPartType } from "@/lib/types";
 import { formatDuration } from "@/lib/format";
-import {
-  ChevronDown,
-  ChevronRight,
-  CheckCircle,
-  XCircle,
-  Loader,
-  Clock,
-} from "lucide-react";
+import type { ToolPart as ToolPartType } from "@/lib/types";
+import { CheckCircle, ChevronDown, ChevronRight, Clock, Loader, XCircle } from "lucide-react";
+import { useState } from "react";
 
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
@@ -65,6 +58,7 @@ export function ToolCallPart({ part }: { part: ToolPartType }) {
     >
       {/* Clickable header */}
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
@@ -74,10 +68,7 @@ export function ToolCallPart({ part }: { part: ToolPartType }) {
           <ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
         )}
         <StatusIcon status={state.status} />
-        <span
-          className="text-xs font-mono font-medium"
-          style={{ color: "var(--text-primary)" }}
-        >
+        <span className="text-xs font-mono font-medium" style={{ color: "var(--text-primary)" }}>
           {tool}
         </span>
         <StatusBadge status={state.status} />
@@ -90,10 +81,7 @@ export function ToolCallPart({ part }: { part: ToolPartType }) {
 
       {/* Expanded content */}
       {open && (
-        <div
-          className="px-3 pb-3 space-y-2 border-t"
-          style={{ borderColor: "var(--border)" }}
-        >
+        <div className="px-3 pb-3 space-y-2 border-t" style={{ borderColor: "var(--border)" }}>
           {/* Input */}
           {state.input && Object.keys(state.input).length > 0 && (
             <div className="mt-2">

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { searchMemories } from "@/lib/api";
-import type { UnifiedSearchResult } from "@/lib/types";
 import { relativeTime } from "@/lib/format";
-import { Search, Archive, Brain } from "lucide-react";
+import type { UnifiedSearchResult } from "@/lib/types";
+import { Archive, Brain, Search } from "lucide-react";
+import { useState } from "react";
 
 export function SearchInterface() {
   const [query, setQuery] = useState("");
@@ -100,10 +100,7 @@ export function SearchInterface() {
                         result.source === "archive"
                           ? "rgba(59,130,246,0.15)"
                           : "rgba(34,197,94,0.15)",
-                      color:
-                        result.source === "archive"
-                          ? "var(--accent)"
-                          : "var(--success)",
+                      color: result.source === "archive" ? "var(--accent)" : "var(--success)",
                     }}
                   >
                     {result.source}

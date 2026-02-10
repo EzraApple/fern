@@ -1,14 +1,8 @@
 "use client";
 
-import { useSessions, useMemories, useArchives, usePRs } from "@/lib/hooks";
+import { useArchives, useMemories, usePRs, useSessions } from "@/lib/hooks";
+import { Archive, ArrowRight, Brain, GitPullRequest, MessageSquare } from "lucide-react";
 import Link from "next/link";
-import {
-  MessageSquare,
-  Brain,
-  Archive,
-  GitPullRequest,
-  ArrowRight,
-} from "lucide-react";
 
 function OverviewCard({
   href,

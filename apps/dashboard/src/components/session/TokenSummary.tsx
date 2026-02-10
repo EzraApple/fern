@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTokens, formatCost } from "@/lib/format";
+import { formatCost, formatTokens } from "@/lib/format";
 
 interface TokenInfo {
   input: number;

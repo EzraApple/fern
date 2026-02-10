@@ -54,6 +54,13 @@
     }
   },
   "files": {
-    "ignore": ["dist/**", "node_modules/**", "*.md", ".claude/**", "apps/dashboard/.next/**", "apps/dashboard/node_modules/**"]
+    "ignore": [
+      "dist/**",
+      "node_modules/**",
+      "*.md",
+      ".claude/**",
+      "apps/dashboard/.next/**",
+      "apps/dashboard/node_modules/**"
+    ]
   }
 }

@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { usePRs } from "@/lib/hooks";
 import { fetchPRStatus } from "@/lib/api";
-import type { PRStatus } from "@/lib/types";
 import { relativeTime } from "@/lib/format";
+import { usePRs } from "@/lib/hooks";
+import type { PRStatus } from "@/lib/types";
 import {
-  GitPullRequest,
-  GitMerge,
   CheckCircle,
-  XCircle,
-  Clock,
   ChevronDown,
   ChevronRight,
+  Clock,
   ExternalLink,
+  GitMerge,
+  GitPullRequest,
+  XCircle,
 } from "lucide-react";
+import { useState } from "react";
 
 function PRStateIcon({ state }: { state: string }) {
   switch (state) {
@@ -84,6 +84,7 @@ export default function GitHubPage() {
       <div className="flex gap-1 mb-4">
         {["all", "open", "closed"].map((s) => (
           <button
+            type="button"
             key={s}
             onClick={() => setStateFilter(s)}
             className="px-3 py-1 rounded-md text-xs transition-colors capitalize"
@@ -115,6 +116,7 @@ export default function GitHubPage() {
             }}
           >
             <button
+              type="button"
               onClick={() => handleTogglePR(pr.number)}
               className="w-full flex items-center gap-3 p-4 text-left"
             >
@@ -153,7 +155,10 @@ export default function GitHubPage() {
                 ) : prStatuses[pr.number] ? (
                   <div className="mt-3 space-y-3">
                     <div>
-                      <p className="text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
+                      <p
+                        className="text-xs font-medium mb-1"
+                        style={{ color: "var(--text-muted)" }}
+                      >
                         Checks
                       </p>
                       <div className="flex flex-wrap gap-1">
@@ -169,13 +174,20 @@ export default function GitHubPage() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
+                      <p
+                        className="text-xs font-medium mb-1"
+                        style={{ color: "var(--text-muted)" }}
+                      >
                         Reviews
                       </p>
                       {prStatuses[pr.number].reviews.length > 0 ? (
                         <div className="space-y-1">
-                          {prStatuses[pr.number].reviews.map((review, i) => (
-                            <p key={i} className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                          {prStatuses[pr.number].reviews.map((review) => (
+                            <p
+                              key={`${review.user}-${review.state}`}
+                              className="text-xs"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
                               {review.user}: {review.state}
                             </p>
                           ))}

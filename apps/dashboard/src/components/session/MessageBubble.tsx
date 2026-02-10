@@ -1,12 +1,12 @@
 "use client";
 
-import type { SessionMessage, Part, AssistantMessage } from "@/lib/types";
-import { relativeTime, fullDateTime } from "@/lib/format";
-import { TextPartView } from "./TextPart";
-import { ToolCallPart } from "./ToolCallPart";
+import { fullDateTime, relativeTime } from "@/lib/format";
+import type { AssistantMessage, Part, SessionMessage } from "@/lib/types";
+import { Bot, User } from "lucide-react";
 import { ReasoningPartView } from "./ReasoningPart";
+import { TextPartView } from "./TextPart";
 import { TokenSummary } from "./TokenSummary";
-import { User, Bot } from "lucide-react";
+import { ToolCallPart } from "./ToolCallPart";
 
 function PartRenderer({ part }: { part: Part }) {
   switch (part.type) {
@@ -57,11 +57,18 @@ export function MessageBubble({ message }: { message: SessionMessage }) {
           >
             {isUser ? "User" : "Assistant"}
           </span>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }} title={fullDateTime(info.time.created)}>
+          <span
+            className="text-xs"
+            style={{ color: "var(--text-muted)" }}
+            title={fullDateTime(info.time.created)}
+          >
             {relativeTime(info.time.created)}
           </span>
           {isAssistant && (info as AssistantMessage).tokens && (
-            <TokenSummary tokens={(info as AssistantMessage).tokens} cost={(info as AssistantMessage).cost} />
+            <TokenSummary
+              tokens={(info as AssistantMessage).tokens}
+              cost={(info as AssistantMessage).cost}
+            />
           )}
         </div>
 

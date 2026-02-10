@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { ChevronDown, ChevronRight, Lightbulb } from "lucide-react";
+import { useState } from "react";
 
 export function ReasoningPartView({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -17,6 +17,7 @@ export function ReasoningPartView({ text }: { text: string }) {
       }}
     >
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
@@ -31,10 +32,7 @@ export function ReasoningPartView({ text }: { text: string }) {
         </span>
       </button>
       {open && (
-        <div
-          className="px-3 pb-3 border-t"
-          style={{ borderColor: "var(--border)" }}
-        >
+        <div className="px-3 pb-3 border-t" style={{ borderColor: "var(--border)" }}>
           <pre
             className="mt-2 text-xs whitespace-pre-wrap"
             style={{ color: "var(--text-secondary)" }}

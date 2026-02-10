@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useArchives } from "@/lib/hooks";
 import { fetchArchiveChunk } from "@/lib/api";
+import { formatTokens, fullDateTime, relativeTime } from "@/lib/format";
+import { useArchives } from "@/lib/hooks";
 import type { ArchiveChunk } from "@/lib/types";
-import { relativeTime, formatTokens, fullDateTime } from "@/lib/format";
-import { ChevronDown, ChevronRight, Archive, FileText } from "lucide-react";
+import { Archive, ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { useState } from "react";
 
 function ChunkViewer({ chunk }: { chunk: ArchiveChunk }) {
   return (
@@ -18,7 +18,9 @@ function ChunkViewer({ chunk }: { chunk: ArchiveChunk }) {
         className="rounded-md p-3 text-xs"
         style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-secondary)" }}
       >
-        <p className="font-medium mb-1" style={{ color: "var(--text-primary)" }}>Summary:</p>
+        <p className="font-medium mb-1" style={{ color: "var(--text-primary)" }}>
+          Summary:
+        </p>
         <p>{chunk.summary}</p>
       </div>
     </div>
@@ -75,6 +77,7 @@ export function ArchiveBrowser() {
             }}
           >
             <button
+              type="button"
               onClick={() => handleToggle(s)}
               className="w-full flex items-center gap-3 p-4 text-left"
             >

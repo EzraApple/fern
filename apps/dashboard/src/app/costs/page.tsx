@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { useSessions } from "@/lib/hooks";
 import { fetchSessionMessages } from "@/lib/api";
-import type { SessionMessage, AssistantMessage } from "@/lib/types";
-import { formatTokens, formatCost } from "@/lib/format";
-import { DollarSign, ArrowUpRight, ArrowDownRight, Cpu } from "lucide-react";
+import { formatCost, formatTokens } from "@/lib/format";
+import { useSessions } from "@/lib/hooks";
+import type { AssistantMessage, SessionMessage } from "@/lib/types";
+import { ArrowDownRight, ArrowUpRight, Cpu, DollarSign } from "lucide-react";
+import { useMemo } from "react";
 import useSWR from "swr";
 
 interface SessionCost {
@@ -20,11 +20,7 @@ interface SessionCost {
   messageCount: number;
 }
 
-function extractCosts(
-  sessionId: string,
-  title: string,
-  messages: SessionMessage[]
-): SessionCost {
+function extractCosts(sessionId: string, title: string, messages: SessionMessage[]): SessionCost {
   let inputTokens = 0;
   let outputTokens = 0;
   let reasoningTokens = 0;
@@ -94,10 +90,7 @@ function StatCard({
 export default function CostsPage() {
   const { data: sessions } = useSessions();
 
-  const sessionIds = useMemo(
-    () => (sessions || []).slice(0, 30),
-    [sessions]
-  );
+  const sessionIds = useMemo(() => (sessions || []).slice(0, 30), [sessions]);
 
   const { data: sessionCosts, isLoading } = useSWR(
     sessionIds.length > 0 ? ["session-costs", ...sessionIds.map((s) => s.id)] : null,
@@ -135,9 +128,7 @@ export default function CostsPage() {
         Token Usage & Costs
       </h1>
 
-      {isLoading && (
-        <p style={{ color: "var(--text-muted)" }}>Loading cost data...</p>
-      )}
+      {isLoading && <p style={{ color: "var(--text-muted)" }}>Loading cost data...</p>}
 
       {/* Summary cards */}
       {totals && (
@@ -171,29 +162,44 @@ export default function CostsPage() {
 
       {/* Per-session table */}
       {sessionCosts && sessionCosts.length > 0 && (
-        <div
-          className="rounded-lg border overflow-hidden"
-          style={{ borderColor: "var(--border)" }}
-        >
+        <div className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "var(--bg-secondary)" }}>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-left px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Session
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-right px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Input
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-right px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Output
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-right px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Reasoning
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-right px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Cost
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-right px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Messages
                 </th>
               </tr>
@@ -208,26 +214,44 @@ export default function CostsPage() {
                     style={{ borderColor: "var(--border)" }}
                   >
                     <td className="px-4 py-2">
-                      <p className="text-xs truncate max-w-48" style={{ color: "var(--text-primary)" }}>
+                      <p
+                        className="text-xs truncate max-w-48"
+                        style={{ color: "var(--text-primary)" }}
+                      >
                         {sc.title || sc.sessionId}
                       </p>
                       <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
                         {sc.sessionId.slice(0, 8)}
                       </p>
                     </td>
-                    <td className="px-4 py-2 text-right text-xs" style={{ color: "var(--text-secondary)" }}>
+                    <td
+                      className="px-4 py-2 text-right text-xs"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       {formatTokens(sc.inputTokens)}
                     </td>
-                    <td className="px-4 py-2 text-right text-xs" style={{ color: "var(--text-secondary)" }}>
+                    <td
+                      className="px-4 py-2 text-right text-xs"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       {formatTokens(sc.outputTokens)}
                     </td>
-                    <td className="px-4 py-2 text-right text-xs" style={{ color: "var(--text-secondary)" }}>
+                    <td
+                      className="px-4 py-2 text-right text-xs"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       {formatTokens(sc.reasoningTokens)}
                     </td>
-                    <td className="px-4 py-2 text-right text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+                    <td
+                      className="px-4 py-2 text-right text-xs font-medium"
+                      style={{ color: "var(--text-primary)" }}
+                    >
                       {formatCost(sc.cost)}
                     </td>
-                    <td className="px-4 py-2 text-right text-xs" style={{ color: "var(--text-muted)" }}>
+                    <td
+                      className="px-4 py-2 text-right text-xs"
+                      style={{ color: "var(--text-muted)" }}
+                    >
                       {sc.messageCount}
                     </td>
                   </tr>

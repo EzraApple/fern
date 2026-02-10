@@ -1,12 +1,12 @@
 import type {
+  ArchiveChunk,
+  ArchiveSummary,
+  PRStatus,
+  PRSummary,
+  PersistentMemory,
   Session,
   SessionMessage,
-  PersistentMemory,
   UnifiedSearchResult,
-  ArchiveSummary,
-  ArchiveChunk,
-  PRSummary,
-  PRStatus,
 } from "./types";
 
 const API_BASE = "/api";
@@ -56,14 +56,11 @@ export async function searchMemories(
   query: string,
   options?: { limit?: number; threadId?: string }
 ): Promise<UnifiedSearchResult[]> {
-  const data = await fetchJSON<{ results: UnifiedSearchResult[] }>(
-    `${API_BASE}/memories/search`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, ...options }),
-    }
-  );
+  const data = await fetchJSON<{ results: UnifiedSearchResult[] }>(`${API_BASE}/memories/search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, ...options }),
+  });
   return data.results;
 }
 
@@ -82,10 +79,7 @@ export async function fetchArchives(options?: {
   return data.summaries;
 }
 
-export async function fetchArchiveChunk(
-  threadId: string,
-  chunkId: string
-): Promise<ArchiveChunk> {
+export async function fetchArchiveChunk(threadId: string, chunkId: string): Promise<ArchiveChunk> {
   return fetchJSON<ArchiveChunk>(`${API_BASE}/archives/${threadId}/${chunkId}`);
 }
 
@@ -98,22 +92,15 @@ export async function fetchPRs(options?: {
   if (options?.repo) params.set("repo", options.repo);
   if (options?.state) params.set("state", options.state);
   const qs = params.toString();
-  const data = await fetchJSON<{ prs: PRSummary[] }>(
-    `${API_BASE}/github/prs${qs ? `?${qs}` : ""}`
-  );
+  const data = await fetchJSON<{ prs: PRSummary[] }>(`${API_BASE}/github/prs${qs ? `?${qs}` : ""}`);
   return data.prs;
 }
 
-export async function fetchPRStatus(
-  prNumber: number,
-  repo?: string
-): Promise<PRStatus> {
+export async function fetchPRStatus(prNumber: number, repo?: string): Promise<PRStatus> {
   const params = new URLSearchParams();
   if (repo) params.set("repo", repo);
   const qs = params.toString();
-  return fetchJSON<PRStatus>(
-    `${API_BASE}/github/prs/${prNumber}${qs ? `?${qs}` : ""}`
-  );
+  return fetchJSON<PRStatus>(`${API_BASE}/github/prs/${prNumber}${qs ? `?${qs}` : ""}`);
 }
 
 // Tools

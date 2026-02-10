@@ -1,19 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import type { Session } from "@/lib/types";
 import { relativeTime } from "@/lib/format";
+import type { Session } from "@/lib/types";
 import { MessageSquare } from "lucide-react";
+import Link from "next/link";
 
 export function SessionList({ sessions }: { sessions: Session[] }) {
-  const sorted = [...sessions].sort(
-    (a, b) => b.time.updated - a.time.updated
-  );
+  const sorted = [...sessions].sort((a, b) => b.time.updated - a.time.updated);
 
   if (sorted.length === 0) {
-    return (
-      <p style={{ color: "var(--text-muted)" }}>No sessions found.</p>
-    );
+    return <p style={{ color: "var(--text-muted)" }}>No sessions found.</p>;
   }
 
   return (
@@ -30,10 +26,7 @@ export function SessionList({ sessions }: { sessions: Session[] }) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
-              <MessageSquare
-                size={16}
-                style={{ color: "var(--text-muted)", flexShrink: 0 }}
-              />
+              <MessageSquare size={16} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
               <div className="min-w-0">
                 <p
                   className="text-sm font-medium truncate"

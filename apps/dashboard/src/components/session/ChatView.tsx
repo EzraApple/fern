@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import type { SessionMessage } from "@/lib/types";
+import { useEffect, useRef } from "react";
 import { MessageBubble } from "./MessageBubble";
 
 export function ChatView({ messages }: { messages: SessionMessage[] }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const messageCount = messages.length;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on message count change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  }, [messageCount]);
 
   if (messages.length === 0) {
-    return (
-      <p style={{ color: "var(--text-muted)" }}>No messages in this session.</p>
-    );
+    return <p style={{ color: "var(--text-muted)" }}>No messages in this session.</p>;
   }
 
   return (

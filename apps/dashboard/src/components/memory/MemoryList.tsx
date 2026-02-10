@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useMemories } from "@/lib/hooks";
 import { relativeTime } from "@/lib/format";
-import { Tag, Brain, Heart, GraduationCap } from "lucide-react";
+import { useMemories } from "@/lib/hooks";
 import { clsx } from "clsx";
+import { Brain, GraduationCap, Heart, Tag } from "lucide-react";
+import { useState } from "react";
 
 const typeFilters = [
   { value: undefined, label: "All" },
@@ -29,16 +29,13 @@ export function MemoryList() {
       <div className="flex gap-1 mb-4">
         {typeFilters.map((f) => (
           <button
+            type="button"
             key={f.label}
             onClick={() => setTypeFilter(f.value)}
             className={clsx("px-3 py-1 rounded-md text-xs transition-colors")}
             style={{
-              backgroundColor:
-                typeFilter === f.value ? "var(--bg-hover)" : "var(--bg-tertiary)",
-              color:
-                typeFilter === f.value
-                  ? "var(--text-primary)"
-                  : "var(--text-secondary)",
+              backgroundColor: typeFilter === f.value ? "var(--bg-hover)" : "var(--bg-tertiary)",
+              color: typeFilter === f.value ? "var(--text-primary)" : "var(--text-secondary)",
             }}
           >
             {f.label}
@@ -46,12 +43,8 @@ export function MemoryList() {
         ))}
       </div>
 
-      {isLoading && (
-        <p style={{ color: "var(--text-muted)" }}>Loading memories...</p>
-      )}
-      {error && (
-        <p style={{ color: "var(--error)" }}>Failed to load: {error.message}</p>
-      )}
+      {isLoading && <p style={{ color: "var(--text-muted)" }}>Loading memories...</p>}
+      {error && <p style={{ color: "var(--error)" }}>Failed to load: {error.message}</p>}
 
       {memories && memories.length === 0 && (
         <p style={{ color: "var(--text-muted)" }}>No memories found.</p>

@@ -1,18 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { useSessions, useTools } from "@/lib/hooks";
 import { fetchSessionMessages } from "@/lib/api";
+import { formatDuration, fullDateTime, relativeTime } from "@/lib/format";
+import { useSessions, useTools } from "@/lib/hooks";
 import type { SessionMessage, ToolPart } from "@/lib/types";
-import { formatDuration, relativeTime, fullDateTime } from "@/lib/format";
-import {
-  Wrench,
-  CheckCircle,
-  XCircle,
-  Loader,
-  X,
-  Clock,
-} from "lucide-react";
+import { CheckCircle, Clock, Loader, Wrench, X, XCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
 interface ToolExecution {
@@ -26,10 +19,7 @@ interface ToolExecution {
   error?: string;
 }
 
-function extractToolExecutions(
-  sessionId: string,
-  messages: SessionMessage[]
-): ToolExecution[] {
+function extractToolExecutions(sessionId: string, messages: SessionMessage[]): ToolExecution[] {
   const executions: ToolExecution[] = [];
   for (const msg of messages) {
     for (const part of msg.parts) {
@@ -115,12 +105,17 @@ function ToolDetailModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      role="presentation"
       style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
     >
       {/* Modal */}
       <div
         className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl border shadow-2xl mx-4"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         style={{
           backgroundColor: "var(--bg-secondary)",
           borderColor: "var(--border)",
@@ -128,6 +123,7 @@ function ToolDetailModal({
       >
         {/* Close button */}
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-3 right-3 p-1.5 rounded-md transition-colors z-10"
           style={{ color: "var(--text-muted)" }}
@@ -147,12 +143,13 @@ function ToolDetailModal({
             </span>
             <StatusBadge status={exec.status} />
           </div>
-          <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+          <div
+            className="flex items-center gap-4 mt-2 text-xs"
+            style={{ color: "var(--text-muted)" }}
+          >
             {exec.duration !== null && <span>Duration: {formatDuration(exec.duration)}</span>}
             {exec.timestamp > 0 && (
-              <span title={fullDateTime(exec.timestamp)}>
-                {relativeTime(exec.timestamp)}
-              </span>
+              <span title={fullDateTime(exec.timestamp)}>{relativeTime(exec.timestamp)}</span>
             )}
             <span>Session: {exec.sessionId.slice(0, 12)}</span>
           </div>
@@ -163,10 +160,7 @@ function ToolDetailModal({
           {/* Input */}
           {exec.input && Object.keys(exec.input).length > 0 && (
             <div>
-              <p
-                className="text-xs font-medium mb-2"
-                style={{ color: "var(--text-muted)" }}
-              >
+              <p className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>
                 Input
               </p>
               <pre
@@ -184,10 +178,7 @@ function ToolDetailModal({
           {/* Output */}
           {exec.output && (
             <div>
-              <p
-                className="text-xs font-medium mb-2"
-                style={{ color: "var(--text-muted)" }}
-              >
+              <p className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>
                 Output
               </p>
               <pre
@@ -205,10 +196,7 @@ function ToolDetailModal({
           {/* Error */}
           {exec.error && (
             <div>
-              <p
-                className="text-xs font-medium mb-2"
-                style={{ color: "var(--error)" }}
-              >
+              <p className="text-xs font-medium mb-2" style={{ color: "var(--error)" }}>
                 Error
               </p>
               <pre
@@ -245,10 +233,7 @@ export default function ToolsPage() {
   const handleClose = useCallback(() => setSelectedExec(null), []);
 
   // Load messages for all sessions and extract tool calls
-  const sessionIds = useMemo(
-    () => (sessions || []).slice(0, 20).map((s) => s.id),
-    [sessions]
-  );
+  const sessionIds = useMemo(() => (sessions || []).slice(0, 20).map((s) => s.id), [sessions]);
 
   const { data: allExecutions, isLoading } = useSWR(
     sessionIds.length > 0 ? ["tool-executions", ...sessionIds] : null,
@@ -319,31 +304,41 @@ export default function ToolsPage() {
         </select>
       </div>
 
-      {isLoading && (
-        <p style={{ color: "var(--text-muted)" }}>Loading tool executions...</p>
-      )}
+      {isLoading && <p style={{ color: "var(--text-muted)" }}>Loading tool executions...</p>}
 
       {filtered.length > 0 && (
-        <div
-          className="rounded-lg border overflow-hidden"
-          style={{ borderColor: "var(--border)" }}
-        >
+        <div className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "var(--bg-secondary)" }}>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-left px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Tool
                 </th>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-left px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Status
                 </th>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-left px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Duration
                 </th>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-left px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Session
                 </th>
-                <th className="text-left px-4 py-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                <th
+                  className="text-left px-4 py-2 text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
                   Time
                 </th>
               </tr>
@@ -355,6 +350,10 @@ export default function ToolsPage() {
                   className="border-t cursor-pointer transition-colors"
                   style={{ borderColor: "var(--border)" }}
                   onClick={() => setSelectedExec(exec)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") setSelectedExec(exec);
+                  }}
+                  tabIndex={0}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "var(--bg-hover)";
                   }}
@@ -362,7 +361,10 @@ export default function ToolsPage() {
                     e.currentTarget.style.backgroundColor = "transparent";
                   }}
                 >
-                  <td className="px-4 py-2 font-mono text-xs" style={{ color: "var(--text-primary)" }}>
+                  <td
+                    className="px-4 py-2 font-mono text-xs"
+                    style={{ color: "var(--text-primary)" }}
+                  >
                     <div className="flex items-center gap-2">
                       <Wrench size={12} style={{ color: "var(--text-muted)" }} />
                       {exec.tool}
@@ -377,7 +379,11 @@ export default function ToolsPage() {
                         <XCircle size={12} style={{ color: "var(--error)" }} />
                       )}
                       {exec.status === "running" && (
-                        <Loader size={12} className="animate-spin" style={{ color: "var(--warning)" }} />
+                        <Loader
+                          size={12}
+                          className="animate-spin"
+                          style={{ color: "var(--warning)" }}
+                        />
                       )}
                       <span
                         className="text-xs"
@@ -397,7 +403,10 @@ export default function ToolsPage() {
                   <td className="px-4 py-2 text-xs" style={{ color: "var(--text-secondary)" }}>
                     {exec.duration !== null ? formatDuration(exec.duration) : "—"}
                   </td>
-                  <td className="px-4 py-2 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                  <td
+                    className="px-4 py-2 text-xs font-mono"
+                    style={{ color: "var(--text-muted)" }}
+                  >
                     {exec.sessionId.slice(0, 8)}
                   </td>
                   <td className="px-4 py-2 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -415,9 +424,7 @@ export default function ToolsPage() {
       )}
 
       {/* Tool detail modal */}
-      {selectedExec && (
-        <ToolDetailModal exec={selectedExec} onClose={handleClose} />
-      )}
+      {selectedExec && <ToolDetailModal exec={selectedExec} onClose={handleClose} />}
     </div>
   );
 }

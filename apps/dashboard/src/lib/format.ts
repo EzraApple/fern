@@ -1,4 +1,4 @@
-import { formatDistanceToNow, format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 export function relativeTime(timestamp: number): string {
   return formatDistanceToNow(new Date(timestamp), { addSuffix: true });

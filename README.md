@@ -106,12 +106,32 @@ fern/                          # pnpm monorepo
 
 ## Development Setup
 
-Requirements:
-- Node.js 20+ (22+ recommended)
-- pnpm
-- OpenAI API key (for gpt-4o-mini testing)
-- Twilio account (optional, for WhatsApp — free trial works)
-- ngrok (optional, for local WhatsApp testing)
+### Prerequisites
+
+You need these installed before anything else:
+
+| Requirement | Install | Why |
+|---|---|---|
+| **Node.js 20+** | `brew install node` or [nvm](https://github.com/nvm-sh/nvm) | Runtime (22+ recommended, 20 works fine) |
+| **pnpm** | `npm install -g pnpm` | Monorepo package manager |
+| **Xcode Command Line Tools** | `xcode-select --install` | Compiles native modules (`better-sqlite3`, `sqlite-vec`) |
+
+### Services (configured via `.env`)
+
+| Service | Required | Purpose |
+|---|---|---|
+| **OpenAI API key** | Yes | Powers the agent (LLM + embeddings) |
+| **GitHub App** | No | Self-improvement PRs (App ID, private key, installation ID) |
+| **Twilio** | No | WhatsApp channel (Account SID, Auth Token, phone number) |
+| **ngrok** | No | Exposes localhost for Twilio webhooks during local dev |
+
+### Auto-created on first run
+
+These directories are created automatically — no manual setup needed:
+
+- `~/.local/share/opencode/storage/` — session storage
+- `~/.fern/memory/fern.db` — SQLite memory database
+- `$TMPDIR/fern-workspaces/` — isolated workspaces for self-improvement
 
 ## Documentation
 

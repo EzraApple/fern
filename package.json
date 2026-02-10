@@ -23,7 +23,9 @@
     "test:core-tools": "vitest run src/core/agent src/core/prompt src/config/",
     "test:scheduler": "vitest run src/scheduler/ src/server/scheduler-api src/server/channel-api",
     "ci": "pnpm run lint && pnpm run tsc",
-    "memory:wipe": "rm -rf ~/.fern/memory && echo 'Memory wiped (DB + archives).'"
+    "memory:wipe": "rm -rf ~/.fern/memory && echo 'Memory wiped (DB + archives).'",
+    "dashboard": "pnpm --filter @fern/dashboard dev",
+    "dashboard:build": "pnpm --filter @fern/dashboard build"
   },
   "keywords": ["ai", "agent", "llm", "telegram", "whatsapp", "self-improving"],
   "author": "Ezra Apple",

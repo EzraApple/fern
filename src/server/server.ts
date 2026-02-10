@@ -5,6 +5,7 @@ import type { ChannelAdapter } from "../channels/types.js";
 import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
 import { runAgentLoop } from "../core/index.js";
 import { createChannelApi } from "./channel-api.js";
+import { createDashboardApi } from "./dashboard-api.js";
 import { createMemoryApi } from "./memory-api.js";
 import { createSchedulerApi } from "./scheduler-api.js";
 import { createWhatsAppWebhookRoutes } from "./webhooks.js";
@@ -76,6 +77,9 @@ export function createServer(options?: ServerOptions) {
 
   // Mount internal scheduler API
   app.route("/internal/scheduler", createSchedulerApi());
+
+  // Mount dashboard API
+  app.route("/api", createDashboardApi());
 
   // Mount WhatsApp webhook if adapter is available
   if (options?.whatsappAdapter) {

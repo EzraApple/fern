@@ -442,6 +442,36 @@ export async function getSessionMessages(sessionId: string): Promise<unknown[]> 
 }
 
 /**
+ * List all sessions
+ */
+export async function listSessions(): Promise<unknown[]> {
+  try {
+    const client = await getClient();
+    const result = await client.session.list();
+    return result.data ?? [];
+  } catch (error) {
+    console.error("[OpenCode] Failed to list sessions:", error);
+    return [];
+  }
+}
+
+/**
+ * Get a session by ID
+ */
+export async function getSession(sessionId: string): Promise<unknown | null> {
+  try {
+    const client = await getClient();
+    const result = await client.session.get({
+      path: { id: sessionId },
+    });
+    return result.data ?? null;
+  } catch (error) {
+    console.error(`[OpenCode] Failed to get session ${sessionId}:`, error);
+    return null;
+  }
+}
+
+/**
  * List available tools
  */
 export async function listTools(): Promise<string[]> {

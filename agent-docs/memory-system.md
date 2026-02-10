@@ -12,7 +12,7 @@ Fern has a two-layer memory architecture backed by SQLite + sqlite-vec:
 1. **Archival Memory** - Async shadow layer that captures, summarizes, embeds, and stores conversation chunks
 2. **Persistent Memory** - Agent-written knowledge base (facts, preferences, learnings) via `memory_write` tool
 
-Both layers share the same SQLite database (`~/.fern/memory/fern.db`) with vector search via `sqlite-vec` and keyword search via FTS5.
+Both layers share the same SQLite database (`~/.fern/memory/fern.db`) with vector search via `sqlite-vec` and keyword search via FTS5. The scheduling system also stores its `scheduled_jobs` table in this same database.
 
 ## Architecture: HTTP Proxy Pattern
 
@@ -107,6 +107,9 @@ summaries_vec (id, embedding FLOAT[1536])  -- sqlite-vec virtual table
 memories (id, type, content, tags, created_at, updated_at)
 memories_fts (content, id, type)           -- FTS5 virtual table
 memories_vec (id, embedding FLOAT[1536])   -- sqlite-vec virtual table
+
+-- Scheduled jobs (shared DB, managed by src/scheduler/db.ts)
+scheduled_jobs (id, type, status, prompt, scheduled_at, cron_expr, created_at, updated_at, ...)
 ```
 
 ## Hybrid Search

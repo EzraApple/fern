@@ -40,8 +40,8 @@ Tools are classified for parallel execution:
 
 | Classification | Parallel? | Examples |
 |---------------|-----------|----------|
-| **Read** | Yes | `read`, `glob`, `grep`, `web_fetch`, `memory_search` |
-| **Write** | No (sequential) | `write`, `edit`, `bash` (mutating), `message`, `memory_write` |
+| **Read** | Yes | `read`, `glob`, `grep`, `web_fetch`, `memory_search`, `schedule_list` |
+| **Write** | No (sequential) | `write`, `edit`, `bash` (mutating), `send_message`, `memory_write`, `schedule`, `schedule_cancel` |
 
 ### Classifying Your Tool
 

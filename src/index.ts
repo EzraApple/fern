@@ -6,11 +6,13 @@
 
 import { serve } from "@hono/node-server";
 import { WhatsAppAdapter } from "./channels/index.js";
+import type { ChannelAdapter } from "./channels/types.js";
 import { getTwilioCredentials, loadConfig } from "./config/index.js";
 import { loadBasePrompt } from "./core/index.js";
 import * as opencodeService from "./core/opencode-service.js";
 import * as workspace from "./core/workspace.js";
 import { closeDb, initMemoryDb } from "./memory/index.js";
+import { initScheduler, stopScheduler } from "./scheduler/index.js";
 import { createServer } from "./server/index.js";
 
 export const VERSION = "0.2.0";
@@ -36,14 +38,20 @@ async function main() {
 
   // Initialize channel adapters
   let whatsappAdapter: WhatsAppAdapter | undefined;
+  const channelAdapters = new Map<string, ChannelAdapter>();
 
   const twilioCreds = getTwilioCredentials();
   if (twilioCreds) {
     whatsappAdapter = new WhatsAppAdapter(twilioCreds);
     await whatsappAdapter.init();
+    channelAdapters.set("whatsapp", whatsappAdapter);
   }
 
-  const app = createServer({ whatsappAdapter });
+  // Initialize scheduler (creates schema + starts background loop)
+  initScheduler();
+  console.info("✓ Scheduler initialized");
+
+  const app = createServer({ whatsappAdapter, channelAdapters });
 
   console.info(`
 ╔═══════════════════════════════════════╗
@@ -62,6 +70,7 @@ async function main() {
   // Setup cleanup handlers
   const cleanup = async () => {
     console.info("\nShutting down...");
+    stopScheduler();
     closeDb();
     workspace.cleanupAllWorkspaces();
     await opencodeService.cleanup();

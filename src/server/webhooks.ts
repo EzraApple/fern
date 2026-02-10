@@ -26,6 +26,7 @@ export function createWhatsAppWebhookRoutes(adapter: WhatsAppAdapter): Hono {
         sessionId,
         message: messageBody,
         channelName: "whatsapp",
+        channelUserId: phoneNumber,
       });
 
       await adapter.send({

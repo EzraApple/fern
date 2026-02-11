@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { createOpencodeClient, createOpencodeServer } from "@opencode-ai/sdk";
 import { getMoonshotApiKey, loadConfig } from "../config/config.js";
+import { deleteStaleThreadSessions, getThreadSession, saveThreadSession } from "../memory/db.js";
 
 /**
  * OpenCode Service for Fern
@@ -39,30 +40,7 @@ let serverInfo: {
   client: OpenCodeClient;
 } | null = null;
 
-// Map thread IDs to session IDs for conversation continuity
-interface ThreadSessionEntry {
-  sessionId: string;
-  shareUrl?: string;
-  createdAt: number;
-}
-const threadSessions = new Map<string, ThreadSessionEntry>();
 const THREAD_SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-
-/**
- * Clean up stale thread sessions older than TTL
- */
-function cleanupStaleThreadSessions(): void {
-  const cutoff = Date.now() - THREAD_SESSION_TTL_MS;
-  let cleaned = 0;
-  for (const [threadId, entry] of threadSessions) {
-    if (entry.createdAt < cutoff) {
-      threadSessions.delete(threadId);
-      cleaned++;
-    }
-  }
-  if (cleaned > 0) {
-  }
-}
 
 // Agent turn timeout (default 8 minutes)
 const AGENT_TURN_TIMEOUT_MS = Number(process.env.FERN_AGENT_TURN_TIMEOUT_MS) || 480_000;
@@ -317,12 +295,21 @@ export async function getOrCreateSession(options: {
 }): Promise<SessionInfo> {
   const { title, threadId } = options;
 
-  // Check if we have an existing session for this thread
-  cleanupStaleThreadSessions();
-  if (threadId && threadSessions.has(threadId)) {
-    const entry = threadSessions.get(threadId);
-    if (entry) {
-      return { sessionId: entry.sessionId, shareUrl: entry.shareUrl };
+  // Clean up stale sessions and check for existing mapping in SQLite
+  try {
+    deleteStaleThreadSessions(THREAD_SESSION_TTL_MS);
+  } catch {
+    // DB may not be initialized yet during early startup
+  }
+
+  if (threadId) {
+    try {
+      const entry = getThreadSession(threadId);
+      if (entry) {
+        return { sessionId: entry.sessionId, shareUrl: entry.shareUrl };
+      }
+    } catch {
+      // DB may not be initialized yet
     }
   }
 
@@ -346,19 +333,24 @@ export async function getOrCreateSession(options: {
       path: { id: sessionId },
     });
     shareUrl = shareResult.data?.share?.url;
-    if (shareUrl) {
-    }
   } catch (shareError) {
     console.warn("[OpenCode] Failed to share session:", shareError);
   }
 
-  // Store session for this thread with TTL tracking
+  // Store session mapping in SQLite
   if (threadId) {
-    threadSessions.set(threadId, {
-      sessionId,
-      shareUrl,
-      createdAt: Date.now(),
-    });
+    try {
+      const now = Date.now();
+      saveThreadSession({
+        threadId,
+        sessionId,
+        shareUrl,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch {
+      // DB may not be initialized yet
+    }
   }
 
   return { sessionId, shareUrl };

@@ -198,3 +198,9 @@ export function getWebhookBaseUrl(): string | null {
   // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
   return process.env["FERN_WEBHOOK_URL"] || null;
 }
+
+/** Returns the GitHub webhook secret for signature verification, or null if not set */
+export function getGitHubWebhookSecret(): string | null {
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  return process.env["GITHUB_WEBHOOK_SECRET"] || null;
+}

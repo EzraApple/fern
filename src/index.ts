@@ -9,7 +9,9 @@ import { serve } from "@hono/node-server";
 import { WhatsAppAdapter } from "./channels/index.js";
 import type { ChannelAdapter } from "./channels/types.js";
 import { getTwilioCredentials, loadConfig } from "./config/index.js";
+import { runAgentLoop } from "./core/agent.js";
 import { initAlerts, sendAlert } from "./core/alerts.js";
+import { clearDeployState, readDeployState, writeDeployState } from "./core/deploy-state.js";
 import { loadBasePrompt } from "./core/index.js";
 import * as opencodeService from "./core/opencode-service.js";
 import { initWatchdog, recordOpenCodeFailure, resetOpenCodeFailures } from "./core/watchdog.js";
@@ -105,6 +107,58 @@ async function main() {
     channelAdapters.set("whatsapp", whatsappAdapter);
   }
 
+  // Check for in-progress deploy (resume verification after restart)
+  const deployState = readDeployState();
+  if (deployState && deployState.status === "in_progress") {
+    const verifyStartedAt = new Date().toISOString();
+    const elapsedMs = Date.now() - new Date(deployState.startedAt).getTime();
+    const elapsedSec = Math.round(elapsedMs / 1000);
+    const currentSha = execSync("git rev-parse HEAD", { encoding: "utf-8" }).trim();
+
+    console.info(
+      `[Deploy] Resuming verification (${elapsedSec}s elapsed, SHA: ${currentSha.slice(0, 7)})`
+    );
+
+    writeDeployState({ ...deployState, status: "verifying", verifyStartedAt });
+
+    const commitSummary = deployState.commits
+      .map((c) => `  - ${c.sha.slice(0, 7)}: ${c.message} (${c.author})`)
+      .join("\n");
+
+    // Fire in background — don't block startup
+    void (async () => {
+      // Wait for server + scheduler to be fully ready
+      await new Promise((r) => setTimeout(r, 3000));
+
+      try {
+        await runAgentLoop({
+          sessionId: deployState.threadId,
+          message: `Resuming after deployment restart (${elapsedSec}s elapsed since you triggered the update).
+
+The updater has completed and the server is back online. Load the verify-update skill to check that everything is working.
+
+Deploy details:
+- Before SHA: ${deployState.beforeSha}
+- Expected SHA: ${deployState.afterSha}
+- Current SHA: ${currentSha}
+- Commits deployed:
+${commitSummary}`,
+          channelName: "github",
+        });
+
+        // If we get here, the verify session completed (agent handled deploy state cleanup)
+        console.info("[Deploy] Verification session completed");
+      } catch (error) {
+        console.error("[Deploy] Verification session error:", error);
+        clearDeployState();
+      }
+    })();
+  } else if (deployState && deployState.status === "verifying") {
+    // Crashed during verification — clean up stale state
+    console.warn("[Deploy] Clearing stale verifying state from previous run");
+    clearDeployState();
+  }
+
   // Initialize scheduler (creates schema + starts background loop)
   initScheduler();
   console.info("✓ Scheduler initialized");
@@ -139,6 +193,7 @@ async function main() {
       console.info("Endpoints:");
       console.info("  GET  /health            - Health check");
       console.info("  POST /chat              - Send a message");
+      console.info("  POST /webhooks/github   - GitHub push webhook");
       if (whatsappAdapter) {
         console.info("  POST /webhooks/whatsapp - Twilio WhatsApp webhook");
       }

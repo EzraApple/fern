@@ -6,6 +6,7 @@ import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
 import { runAgentLoop } from "../core/index.js";
 import { createChannelApi } from "./channel-api.js";
 import { createDashboardApi } from "./dashboard-api.js";
+import { createGitHubWebhookRoutes } from "./github-webhook.js";
 import { internalAuth } from "./internal-auth.js";
 import { createMemoryApi } from "./memory-api.js";
 import { createSchedulerApi } from "./scheduler-api.js";
@@ -84,6 +85,9 @@ export function createServer(options?: ServerOptions) {
 
   // Mount dashboard API
   app.route("/api", createDashboardApi());
+
+  // Mount GitHub webhook (always available, signature verification optional)
+  app.route("/webhooks/github", createGitHubWebhookRoutes());
 
   // Mount WhatsApp webhook if adapter is available
   if (options?.whatsappAdapter) {

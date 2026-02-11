@@ -9,8 +9,8 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 ### What's Working
 - Agent loop: message → OpenCode SDK → tool execution → response
 - Session storage: OpenCode file-based storage in `~/.local/share/opencode/storage/`
-- HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`, `/api/*` dashboard endpoints)
-- Tools: 14 tools — `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + `send_message` + built-in coding tools (read, edit, write, bash, glob, grep)
+- HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`, `/webhooks/github`, `/api/*` dashboard endpoints)
+- Tools: 16 tools — `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + `send_message` + `trigger_update` + `trigger_rollback` + built-in coding tools (read, edit, write, bash, glob, grep)
 - WhatsApp channel via Twilio (webhook-based)
 - Dynamic system prompt from `config/SYSTEM_PROMPT.md` with self-improvement workflow
 - OpenCode embedded server (port 4096-4300)
@@ -19,7 +19,8 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - **Phase 4: Observability** - Next.js 15 dashboard app (`apps/dashboard/`) with views for sessions, memory, tools, GitHub PRs, and costs. Dashboard API at `/api/*` on the Fern server.
 - **Phase 5: Scheduling** - SQLite job queue in existing memory DB. `schedule` tool creates one-shot or recurring (cron) jobs. Each job is a prompt that fires a fresh agent session — agent has full autonomy to decide what tools to use and what channels to message. `send_message` tool enables proactive outbound messaging to any channel. Background loop polls every 60s.
 - **Hardening**: Internal API auth (shared-secret middleware), Twilio webhook signature verification, watchdog with WhatsApp failure alerts, pm2 process supervision.
-- **Skills**: 3 bootstrapping skills (`adding-skills`, `adding-mcps`, `adding-tools`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
+- **Skills**: 5 skills (`adding-skills`, `adding-mcps`, `adding-tools`, `self-update`, `verify-update`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
+- **Auto-Update**: GitHub webhook detects pushes to main → agent reviews changes, notifies user, triggers update → updater script (separate pm2 process) pulls/builds/restarts → agent resumes same session for verification → rollback if broken. Thread-session map persisted in SQLite for session continuity across restarts.
 - **MCP**: Fetch MCP (`@modelcontextprotocol/server-fetch`) for web content retrieval. Configured in `src/.opencode/opencode.jsonc`.
 
 ## Quick Commands
@@ -47,6 +48,7 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 | `src/core/agent.ts` | Main agent loop using OpenCode SDK |
 | `src/core/opencode-service.ts` | OpenCode server/client management, event streaming |
 | `src/core/github-service.ts` | GitHub App authentication, PR creation, status checking (Octokit) |
+| `src/core/deploy-state.ts` | Deploy state JSON file read/write for auto-update lifecycle |
 | `src/core/workspace.ts` | Workspace lifecycle (create, cleanup, stale detection) |
 | `src/core/workspace-git.ts` | Git operations in workspace (branch, commit, push) |
 | `src/types/workspace.ts` | Workspace and git commit type definitions |
@@ -75,16 +77,22 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 | `src/.opencode/tool/schedule.ts` | `schedule` tool — create one-shot or recurring jobs |
 | `src/.opencode/tool/schedule-manage.ts` | `schedule_list` and `schedule_cancel` tools |
 | `src/.opencode/tool/send-message.ts` | `send_message` tool — proactive outbound messaging to any channel |
+| `src/.opencode/tool/trigger-update.ts` | `trigger_update` tool — writes flag file to trigger updater script |
+| `src/.opencode/tool/trigger-rollback.ts` | `trigger_rollback` tool — writes flag file to trigger rollback |
+| `src/.opencode/skill/self-update/` | Pre-update skill — review changes, notify user, trigger deploy |
+| `src/.opencode/skill/verify-update/` | Post-update skill — health checks, rollback, fix PR guidance |
 | `src/server/server.ts` | HTTP routes (includes internal memory, scheduler, channel, and dashboard APIs) |
 | `src/server/dashboard-api.ts` | Public dashboard API endpoints (sessions, memories, archives, GitHub PRs, tools) |
 | `src/server/memory-api.ts` | Internal memory API endpoints (write, search, read, delete) |
 | `src/server/scheduler-api.ts` | Internal scheduler API endpoints (create, list, get, cancel) |
 | `src/server/channel-api.ts` | Internal channel send API (adapter lookup + dispatch) |
+| `src/server/github-webhook.ts` | GitHub push webhook route (with HMAC signature verification) |
 | `src/server/webhooks.ts` | Twilio WhatsApp webhook route (with signature verification) |
 | `src/server/internal-auth.ts` | Shared-secret auth middleware for `/internal/*` routes |
 | `src/core/alerts.ts` | WhatsApp failure alert sender with retry logic |
 | `src/core/watchdog.ts` | Consecutive failure tracking + shutdown trigger |
-| `ecosystem.config.cjs` | pm2 process management config (auto-restart, logging) |
+| `ecosystem.config.cjs` | pm2 process management config (fern, fern-updater, caffeinate, ngrok) |
+| `scripts/updater.sh` | Auto-update script — polls for trigger files, does git pull + build + restart or rollback |
 | `src/config/config.ts` | Config loading (includes GitHub App credentials) |
 | `src/core/prompt.ts` | System prompt loading, tool injection, channel prompts |
 | `config/SYSTEM_PROMPT.md` | Agent personality, self-improvement workflow, safety rules |
@@ -191,6 +199,15 @@ MCP (Model Context Protocol) servers provide external tools, configured in `src/
 - Branch protection enforced (PR-only merges to main)
 - All operations validated and errors surfaced to agent for handling
 
+### Auto-Update System
+- **Trigger**: GitHub push webhook (`/webhooks/github`) with HMAC-SHA256 signature verification (optional via `GITHUB_WEBHOOK_SECRET`)
+- **Pre-update**: Webhook writes deploy state (`~/.fern/deploy-state.json`), fires agent session with `self-update` skill. Agent reviews incoming commits, notifies user via WhatsApp, calls `trigger_update` tool.
+- **Mechanical update**: Separate pm2 process (`fern-updater`) polls for flag files (`~/.fern/update-trigger.flag`). On trigger: backup `dist/` → `git pull` → `pnpm install` → `pnpm build` → `pm2 restart fern`.
+- **Post-update**: On startup, detects in-progress deploy state, resumes SAME OpenCode session with `verify-update` skill. Agent runs self-checks, notifies user, rolls back if broken.
+- **Rollback**: Agent calls `trigger_rollback` → updater restores `dist-backup/` → restart → agent opens fix PR via normal self-improvement workflow.
+- **Session continuity**: Thread-session map persisted in SQLite `thread_sessions` table (survives restarts). Consistent `deploy_session` threadId ensures same conversation across restart boundary.
+- **Deploy state**: JSON file tracks status (`in_progress` → `verifying` → `completed` | `rolled_back`), before/after SHAs, commit details, timestamps.
+
 ### Scheduling System (Phase 5)
 - **Storage**: SQLite `scheduled_jobs` table in existing `~/.fern/memory/fern.db` (shared with memory system)
 - **Job model**: Each job stores a self-contained prompt. When fired, a fresh agent session runs with that prompt — agent has full autonomy to decide what tools to use and what channels to message.
@@ -272,13 +289,15 @@ fern/                              # pnpm monorepo
 │   ├── scheduler/                 # Job scheduling (types, config, db, loop)
 │   └── .opencode/                 # OpenCode configuration
 │       ├── opencode.jsonc         # MCP servers, permissions
-│       ├── tool/                  # 14 tools (auto-discovered by OpenCode)
-│       └── skill/                 # On-demand skills (adding-skills, adding-mcps, adding-tools)
+│       ├── tool/                  # 16 tools (auto-discovered by OpenCode)
+│       └── skill/                 # On-demand skills (adding-skills, adding-mcps, adding-tools, self-update, verify-update)
 ├── apps/
 │   └── dashboard/                 # Next.js 15 observability dashboard
 ├── config/                        # Config files + system prompt
+├── scripts/
+│   └── updater.sh                 # Auto-update script (pm2 process)
 ├── agent-docs/                    # AI development guidance
-├── ecosystem.config.cjs           # pm2 process management
+├── ecosystem.config.cjs           # pm2 process management (fern, fern-updater, caffeinate, ngrok)
 └── ARCHITECTURE.md                # System design
 ```
 

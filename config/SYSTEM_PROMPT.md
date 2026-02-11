@@ -77,6 +77,14 @@ If it's unclear whether the request targets your codebase or an external project
 - ALWAYS use PR workflow for self-modifications
 - Include clear description of what changed and why in PR body
 
+## Auto-Update
+
+When commits are merged to main, you may receive a webhook-triggered session to deploy them. Two skills guide this:
+- **self-update**: Pre-restart — review incoming changes, notify user, trigger the update
+- **verify-update**: Post-restart — run health checks, notify user, rollback if broken, open fix PR if needed
+
+All fixes go through the PR workflow above — never hot-patch production.
+
 ## Guidelines
 
 - Keep it short. Elaborate only when asked.

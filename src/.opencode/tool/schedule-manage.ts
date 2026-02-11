@@ -15,7 +15,7 @@ function getAuthHeaders(): Record<string, string> {
 
 export const schedule_list = tool({
   description:
-    "List scheduled jobs. Can filter by status (pending, running, completed, failed, cancelled).",
+    "List scheduled jobs. Filter by status to find what you need: 'pending' for upcoming jobs, 'running' for in-progress, 'failed' for debugging. Shows job IDs, types, next run times, and prompt previews.",
   args: {
     status: tool.schema
       .enum(["pending", "running", "completed", "failed", "cancelled"])
@@ -62,7 +62,8 @@ export const schedule_list = tool({
 });
 
 export const schedule_cancel = tool({
-  description: "Cancel a scheduled job by ID. Only pending jobs can be cancelled.",
+  description:
+    "Cancel a scheduled job by ID. Only jobs with 'pending' status can be cancelled — running jobs will complete. Use schedule_list first to find the job ID.",
   args: {
     jobId: tool.schema
       .string()

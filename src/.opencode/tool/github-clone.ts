@@ -3,7 +3,7 @@ import { createWorkspace } from "../../core/workspace.js";
 
 export const github_clone = tool({
   description:
-    "Clone a GitHub repository to an isolated workspace for safe modifications. Returns workspace ID and path. All file modifications must be done in this workspace, never in the live codebase.",
+    "Clone a GitHub repository to an isolated workspace for safe modifications. This is always the first step of the self-improvement workflow: clone → branch → modify → test → commit → push → PR. Returns a workspace ID (needed for all subsequent github_* tools) and the workspace path (use this as cwd for read/write/bash). All modifications happen in the workspace — never touch the live codebase.",
   args: {
     repoUrl: tool.schema
       .string()

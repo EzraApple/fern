@@ -87,7 +87,7 @@ function formatChunkMessages(chunk: ArchiveChunk): string {
 
 export const memory_read = tool({
   description:
-    "Read the full original messages from an archived conversation chunk. Use after memory_search to get exact details from a relevant chunk. Returns the complete message transcript that was summarized.",
+    "Read the full original messages from an archived conversation chunk. This is the second step of two-phase retrieval: first memory_search to find relevant chunks, then memory_read to get the complete transcript. Use when a search result summary isn't detailed enough and you need the exact conversation. Both chunkId and threadId are required — get these from memory_search results.",
   args: {
     chunkId: tool.schema.string().describe("The chunk ID from memory_search results"),
     threadId: tool.schema.string().describe("The thread ID from memory_search results"),

@@ -19,6 +19,8 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - **Phase 4: Observability** - Next.js 15 dashboard app (`apps/dashboard/`) with views for sessions, memory, tools, GitHub PRs, and costs. Dashboard API at `/api/*` on the Fern server.
 - **Phase 5: Scheduling** - SQLite job queue in existing memory DB. `schedule` tool creates one-shot or recurring (cron) jobs. Each job is a prompt that fires a fresh agent session — agent has full autonomy to decide what tools to use and what channels to message. `send_message` tool enables proactive outbound messaging to any channel. Background loop polls every 60s.
 - **Hardening**: Internal API auth (shared-secret middleware), Twilio webhook signature verification, watchdog with WhatsApp failure alerts, pm2 process supervision.
+- **Skills**: 3 bootstrapping skills (`adding-skills`, `adding-mcps`, `adding-tools`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
+- **MCP**: Fetch MCP (`@modelcontextprotocol/server-fetch`) for web content retrieval. Configured in `src/.opencode/opencode.jsonc`.
 
 ## Quick Commands
 
@@ -48,7 +50,9 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 | `src/core/workspace.ts` | Workspace lifecycle (create, cleanup, stale detection) |
 | `src/core/workspace-git.ts` | Git operations in workspace (branch, commit, push) |
 | `src/types/workspace.ts` | Workspace and git commit type definitions |
+| `src/.opencode/opencode.jsonc` | OpenCode config (MCP servers, permissions) |
 | `src/.opencode/tool/` | Tool definitions (OpenCode auto-discovery) |
+| `src/.opencode/skill/` | Skills (on-demand instruction sets for the agent) |
 | `src/.opencode/tool/github-*.ts` | 6 GitHub tools for self-improvement workflow |
 | `src/.opencode/tool/memory-write.ts` | Save persistent memories (facts, preferences, learnings) via HTTP |
 | `src/.opencode/tool/memory-search.ts` | Hybrid vector + FTS5 search across archives and persistent memories via HTTP |
@@ -113,6 +117,23 @@ export const echo = tool({
 
 Tools are auto-discovered by OpenCode at startup (no registry needed).
 
+Tool descriptions contain detailed usage prompting — when to use, common mistakes, behavioral notes. This keeps the system prompt light (intent routing only) while tool-specific guidance lives with the tools.
+
+### Skills
+Skills are on-demand Markdown instruction files in `src/.opencode/skill/<name>/SKILL.md`. The built-in `skill` tool lists available skills (name + description) in its own description. The LLM loads skills when a task matches a skill's description.
+
+Key points:
+- YAML frontmatter with `name` (must match directory) and `description` (the trigger — only thing LLM sees before loading)
+- Auto-accepted (`"permission": { "skill": "allow" }` in `opencode.jsonc`) for unattended operation
+- Current skills: `adding-skills`, `adding-mcps`, `adding-tools`
+
+### MCP Servers
+MCP (Model Context Protocol) servers provide external tools, configured in `src/.opencode/opencode.jsonc`:
+- **Local MCPs**: Run as child processes (stdio transport). Config: `{ "type": "local", "command": [...] }`
+- **Remote MCPs**: Connect to HTTP endpoints. Config: `{ "type": "remote", "url": "..." }`
+- Tools auto-prefixed with server name: server `"fetch"` → tool `fetch_fetch`
+- Current MCPs: `fetch` (`@modelcontextprotocol/server-fetch` — web content retrieval)
+
 ### Session Storage
 - OpenCode manages sessions in `~/.local/share/opencode/storage/`
 - File-based: `project/`, `session/`, `message/`, `part/`, `session_diff/`
@@ -134,6 +155,7 @@ Tools are auto-discovered by OpenCode at startup (no registry needed).
 - `buildSystemPrompt()` loads base prompt, replaces placeholders, injects channel context
 - Prompt loaded once and cached via `loadBasePrompt()`
 - Self-improvement detection is pattern-based (intent, not exact phrasing) with context-gated confirmation
+- **Prompting strategy**: System prompt handles behavior/personality and intent routing (which tool for which task). Tool-specific guidance (how to use, gotchas, anti-patterns) lives in tool descriptions. Skills provide on-demand knowledge for unfamiliar workflows.
 
 ### Channel Adapter
 - Adapters implement `ChannelAdapter` interface from `src/channels/types.ts`
@@ -248,7 +270,10 @@ fern/                              # pnpm monorepo
 │   ├── channels/                  # Channel adapters (WhatsApp via Twilio)
 │   ├── memory/                    # Async archival, persistent memory, hybrid search
 │   ├── scheduler/                 # Job scheduling (types, config, db, loop)
-│   └── .opencode/tool/            # 14 tools (auto-discovered by OpenCode)
+│   └── .opencode/                 # OpenCode configuration
+│       ├── opencode.jsonc         # MCP servers, permissions
+│       ├── tool/                  # 14 tools (auto-discovered by OpenCode)
+│       └── skill/                 # On-demand skills (adding-skills, adding-mcps, adding-tools)
 ├── apps/
 │   └── dashboard/                 # Next.js 15 observability dashboard
 ├── config/                        # Config files + system prompt

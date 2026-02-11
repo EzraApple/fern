@@ -15,7 +15,7 @@ function getAuthHeaders(): Record<string, string> {
 
 export const schedule = tool({
   description:
-    "Schedule a future task. The prompt you provide will be used to start a fresh agent session when the time comes — the agent can then use any tools (send_message, github_pr, memory_write, etc.) to fulfill the task. Provide exactly ONE of: scheduledAt, delayMs, or cronExpr.",
+    "Schedule a future task. The prompt runs in a FRESH agent session with NO memory of the current conversation — it must be completely self-contained. Include ALL context in the prompt: who to message (channel + phone number/ID), what to do, repo names, PR numbers, specific details. Never say 'remind the user' without specifying how to reach them. Provide exactly ONE timing option: scheduledAt (absolute ISO 8601), delayMs (relative milliseconds), or cronExpr (cron for recurring). Use the time tool first if you need to calculate timing.",
   args: {
     prompt: tool.schema
       .string()

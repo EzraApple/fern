@@ -3,7 +3,7 @@ import { getPRStatus } from "../../core/github-service.js";
 
 export const github_pr_status = tool({
   description:
-    "Check the status of a pull request including state, CI checks, reviews, and whether it's mergeable. Useful for monitoring PR progress.",
+    "Check the status of a pull request — state, CI checks, reviews, and mergeability. Use to monitor PRs you've created, verify CI is passing, or check if a PR has been reviewed. Useful in scheduled jobs that follow up on open PRs.",
   args: {
     prNumber: tool.schema.number().describe("PR number (e.g., 42)"),
     repo: tool.schema

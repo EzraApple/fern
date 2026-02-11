@@ -4,7 +4,7 @@ import { getWorkspaceById } from "../../core/workspace.js";
 
 export const github_commit = tool({
   description:
-    "Commit all changes in the workspace. Creates a commit with the provided message. Make sure to run tests before committing!",
+    "Commit all staged and unstaged changes in the workspace. ALWAYS run tests before committing (e.g., bash: 'cd <workspace_path> && pnpm run lint && pnpm run tsc'). If tests fail, fix the issues first — don't commit broken code. Write clear commit messages that explain what changed and why, not just what files were modified.",
   args: {
     workspaceId: tool.schema.string().describe("Workspace ID from github_clone"),
     message: tool.schema

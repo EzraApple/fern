@@ -143,6 +143,10 @@ This gives the agent "perfect recall" — search summaries for relevant history,
 
 **HTTP Proxy**: Tools that need native modules (SQLite, etc.) use `fetch()` to call internal Fern server endpoints instead of importing directly.
 
+**Skills**: On-demand Markdown instruction files in `src/.opencode/skill/`. The built-in `skill` tool surfaces skill names and descriptions, and the LLM loads them when a task matches. Current skills: `adding-skills`, `adding-mcps`, `adding-tools` (bootstrapping skills so the agent knows how to extend itself).
+
+**MCP Servers**: External tool servers configured in `src/.opencode/opencode.jsonc`. Currently: Fetch MCP (`@modelcontextprotocol/server-fetch`) for web content retrieval. MCPs are auto-discovered at startup and their tools become available alongside native tools.
+
 ---
 
 ## Layer 4: Channel Adapters (Headless I/O)
@@ -420,6 +424,8 @@ User sends "help me optimize the memory search function" via Telegram
 | Session storage | OpenCode file-based | Managed by OpenCode SDK, tracks diffs/parts/messages |
 | Tool system | OpenCode auto-discovery | Tools in `.opencode/tool/` auto-loaded, no registry |
 | Tool I/O | HTTP proxy pattern | OpenCode's sandboxed runtime can't load native modules |
+| Skills | On-demand Markdown files | Agent loads knowledge when needed, not always in context |
+| MCP | Fetch MCP via opencode.jsonc | Web content retrieval for research during self-improvement |
 | Memory (archival) | Async observer + JSON chunks + SQLite + embeddings | Captures history before compaction, two-phase retrieval |
 | Memory (persistent) | SQLite + sqlite-vec + OpenAI embeddings | Agent-writable, vector-searchable facts/preferences/learnings |
 | Channels | Adapter pattern | Add channels without core changes |

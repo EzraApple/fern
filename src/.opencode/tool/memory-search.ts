@@ -16,7 +16,7 @@ function getAuthHeaders(): Record<string, string> {
 
 export const memory_search = tool({
   description:
-    "Search past conversations and saved memories. Returns results from both archived conversation summaries and persistent memories (facts, preferences, learnings). Use memory_read with chunkId/threadId to get full details from archive results.",
+    "Search past conversations and saved memories using hybrid vector + keyword search. Returns results from both archived conversation summaries and persistent memories (facts, preferences, learnings). This is a two-phase retrieval system: search results show summaries — use memory_read with the chunkId/threadId from archive results to get the full original messages. Use natural language queries for best results (e.g., 'user's timezone preference' not 'timezone'). Search early in a conversation if the user references past context.",
   args: {
     query: tool.schema.string().describe("Search query — what are you trying to remember?"),
     limit: tool.schema.number().optional().describe("Max results to return (default: 5)"),

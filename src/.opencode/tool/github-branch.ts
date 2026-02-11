@@ -4,7 +4,7 @@ import { getWorkspaceById } from "../../core/workspace.js";
 
 export const github_branch = tool({
   description:
-    "Create a new feature branch in the workspace. Branch name should follow the pattern 'fern/descriptive-name' for self-improvement changes.",
+    "Create a new feature branch in a cloned workspace. Call this right after github_clone, before making any changes. Use the naming convention 'fern/descriptive-name' for self-improvement changes (e.g., 'fern/add-retry-logic', 'fern/fix-memory-search'). Never commit directly to main.",
   args: {
     workspaceId: tool.schema.string().describe("Workspace ID from github_clone"),
     branchName: tool.schema

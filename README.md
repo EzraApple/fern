@@ -139,6 +139,32 @@ These directories are created automatically — no manual setup needed:
 
 - [Agent Docs](agent-docs/) - Guides for AI-assisted development
 
+## Production Deployment (Unattended)
+
+For running Fern unattended on a laptop with auto-restart and failure alerts:
+
+```bash
+# Install pm2 (if not already)
+pnpm install
+
+# Add production env vars to .env
+FERN_API_SECRET=<random-secret>           # Protects internal APIs
+FERN_WEBHOOK_URL=https://your.ngrok.io    # Twilio signature verification
+FERN_ALERT_PHONE=+15551234567             # WhatsApp alert recipient
+
+# Build and start with pm2
+pnpm run start:prod
+
+# Monitor
+pnpm run logs          # Tail logs
+pm2 status             # Process status
+
+# Stop
+pnpm run stop:prod
+```
+
+pm2 auto-restarts on crash (up to 15 times). The watchdog sends a WhatsApp alert if critical systems fail repeatedly, then shuts down gracefully.
+
 ## Key Design Decisions
 
 | Decision | Choice | Rationale |

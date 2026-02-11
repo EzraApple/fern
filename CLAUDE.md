@@ -18,6 +18,7 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - **Phase 3: Memory system** - SQLite + sqlite-vec + OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` tool for facts/preferences/learnings. Hybrid vector + FTS5 search. Internal HTTP API proxies DB operations for OpenCode tool compatibility.
 - **Phase 4: Observability** - Next.js 15 dashboard app (`apps/dashboard/`) with views for sessions, memory, tools, GitHub PRs, and costs. Dashboard API at `/api/*` on the Fern server.
 - **Phase 5: Scheduling** - SQLite job queue in existing memory DB. `schedule` tool creates one-shot or recurring (cron) jobs. Each job is a prompt that fires a fresh agent session — agent has full autonomy to decide what tools to use and what channels to message. `send_message` tool enables proactive outbound messaging to any channel. Background loop polls every 60s.
+- **Hardening**: Internal API auth (shared-secret middleware), Twilio webhook signature verification, watchdog with WhatsApp failure alerts, pm2 process supervision.
 
 ## Quick Commands
 
@@ -28,6 +29,10 @@ pnpm run start        # Start server (needs .env with OPENAI_API_KEY)
 pnpm run lint         # Run Biome linter
 pnpm run tsc          # Type check
 pnpm run test         # Run all tests (Vitest)
+pnpm run start:prod   # Build + start with pm2 (auto-restart, logging)
+pnpm run stop:prod    # Stop pm2 process
+pnpm run logs         # Tail pm2 logs
+pnpm run recent       # Show last 10 turns from most recent session (quick debugging)
 pnpm run memory:wipe  # Wipe all archived memories (dev utility)
 pnpm run dashboard    # Start dashboard dev server (port 3000)
 ```
@@ -71,7 +76,11 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 | `src/server/memory-api.ts` | Internal memory API endpoints (write, search, read, delete) |
 | `src/server/scheduler-api.ts` | Internal scheduler API endpoints (create, list, get, cancel) |
 | `src/server/channel-api.ts` | Internal channel send API (adapter lookup + dispatch) |
-| `src/server/webhooks.ts` | Twilio WhatsApp webhook route |
+| `src/server/webhooks.ts` | Twilio WhatsApp webhook route (with signature verification) |
+| `src/server/internal-auth.ts` | Shared-secret auth middleware for `/internal/*` routes |
+| `src/core/alerts.ts` | WhatsApp failure alert sender with retry logic |
+| `src/core/watchdog.ts` | Consecutive failure tracking + shutdown trigger |
+| `ecosystem.config.cjs` | pm2 process management config (auto-restart, logging) |
 | `src/config/config.ts` | Config loading (includes GitHub App credentials) |
 | `src/core/prompt.ts` | System prompt loading, tool injection, channel prompts |
 | `config/SYSTEM_PROMPT.md` | Agent personality, self-improvement workflow, safety rules |
@@ -178,6 +187,13 @@ Tools are auto-discovered by OpenCode at startup (no registry needed).
 - **Client-side**: SWR hooks for data fetching, React 19, Tailwind CSS 4, dark theme
 - **Views**: Overview, Sessions, Memory (3 tabs), Tools, GitHub, Costs
 
+### Hardening (Security + Ops)
+- **Internal API auth**: Shared-secret middleware (`src/server/internal-auth.ts`) protects `/internal/*` routes. Checks `X-Fern-Secret` header against `FERN_API_SECRET` env var. Passthrough when not configured (dev mode). All 6 OpenCode tools include the header via `getAuthHeaders()`.
+- **Twilio webhook verification**: `src/server/webhooks.ts` validates `X-Twilio-Signature` against `FERN_WEBHOOK_URL` env var. Uses `adapter.validateWebhook()` which calls `twilio.validateRequest()`. Skipped when URL not configured (dev mode).
+- **Watchdog**: `src/core/watchdog.ts` tracks consecutive failures for OpenCode (file-persisted across pm2 restarts) and scheduler (in-memory). Triggers alert + shutdown when thresholds exceeded. Config via `FERN_WATCHDOG_MAX_OPENCODE_FAILURES` and `FERN_WATCHDOG_MAX_SCHEDULER_FAILURES`.
+- **Alerts**: `src/core/alerts.ts` sends WhatsApp messages directly via `TwilioGateway` (not through agent loop) to `FERN_ALERT_PHONE`. Retries 3x with 2s delay.
+- **pm2 supervision**: `ecosystem.config.cjs` with auto-restart, max 15 restarts, 5s delay, log files in `logs/`. Scripts: `start:prod`, `stop:prod`, `logs`.
+
 ## Reference Projects
 
 These were used for inspiration (in `/Users/ezraapple/Projects/`):
@@ -225,10 +241,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full system design with diagrams.
 ```
 fern/                              # pnpm monorepo
 ├── src/
-│   ├── index.ts                   # Entry point
-│   ├── core/                      # Agent loop, GitHub service, workspace management
+│   ├── index.ts                   # Entry point (alerts, watchdog init)
+│   ├── core/                      # Agent loop, GitHub service, workspace, alerts, watchdog
 │   ├── config/                    # Configuration loading
-│   ├── server/                    # HTTP server, dashboard API, internal APIs
+│   ├── server/                    # HTTP server, dashboard API, internal APIs, auth middleware
 │   ├── channels/                  # Channel adapters (WhatsApp via Twilio)
 │   ├── memory/                    # Async archival, persistent memory, hybrid search
 │   ├── scheduler/                 # Job scheduling (types, config, db, loop)
@@ -237,6 +253,7 @@ fern/                              # pnpm monorepo
 │   └── dashboard/                 # Next.js 15 observability dashboard
 ├── config/                        # Config files + system prompt
 ├── agent-docs/                    # AI development guidance
+├── ecosystem.config.cjs           # pm2 process management
 └── ARCHITECTURE.md                # System design
 ```
 

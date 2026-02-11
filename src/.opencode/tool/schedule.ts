@@ -4,6 +4,15 @@ function getFernUrl(): string {
   return process.env.FERN_API_URL || `http://127.0.0.1:${process.env.FERN_PORT || "4000"}`;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const secret = process.env.FERN_API_SECRET;
+  if (secret) {
+    headers["X-Fern-Secret"] = secret;
+  }
+  return headers;
+}
+
 export const schedule = tool({
   description:
     "Schedule a future task. The prompt you provide will be used to start a fresh agent session when the time comes — the agent can then use any tools (send_message, github_pr, memory_write, etc.) to fulfill the task. Provide exactly ONE of: scheduledAt, delayMs, or cronExpr.",
@@ -37,7 +46,7 @@ export const schedule = tool({
     try {
       const res = await fetch(`${getFernUrl()}/internal/scheduler/create`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           prompt: args.prompt,
           scheduledAt: args.scheduledAt,

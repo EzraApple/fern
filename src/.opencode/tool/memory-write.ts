@@ -4,6 +4,15 @@ function getFernUrl(): string {
   return process.env.FERN_API_URL || `http://127.0.0.1:${process.env.FERN_PORT || "4000"}`;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const secret = process.env.FERN_API_SECRET;
+  if (secret) {
+    headers["X-Fern-Secret"] = secret;
+  }
+  return headers;
+}
+
 export const memory_write = tool({
   description:
     "Save a persistent memory — a fact, preference, or learning that should be remembered across conversations. Use this to store important information you want to recall later.",
@@ -23,7 +32,7 @@ export const memory_write = tool({
     try {
       const res = await fetch(`${getFernUrl()}/internal/memory/write`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           type: args.type,
           content: args.content,

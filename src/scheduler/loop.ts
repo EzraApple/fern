@@ -1,6 +1,12 @@
 import { CronExpressionParser } from "cron-parser";
 import PQueue from "p-queue";
 import { runAgentLoop } from "../core/agent.js";
+import { sendAlert } from "../core/alerts.js";
+import {
+  recordSchedulerFailure,
+  resetSchedulerFailures,
+  triggerWatchdogShutdown,
+} from "../core/watchdog.js";
 import { getSchedulerConfig } from "./config.js";
 import {
   advanceRecurringJob,
@@ -79,6 +85,8 @@ export async function executeJob(job: ScheduledJob): Promise<void> {
       channelName: "scheduler",
     });
 
+    resetSchedulerFailures();
+
     if (job.type === "recurring" && job.cronExpr) {
       const expr = CronExpressionParser.parse(job.cronExpr, { currentDate: new Date() });
       const next = expr.next().toDate().toISOString();
@@ -96,5 +104,12 @@ export async function executeJob(job: ScheduledJob): Promise<void> {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`[Scheduler] Job ${job.id} failed: ${msg}`);
     updateJobStatus(job.id, "failed", { lastError: msg });
+
+    const thresholdExceeded = recordSchedulerFailure();
+    if (thresholdExceeded) {
+      const alertMsg = `Fern shutting down: repeated scheduler failures at ${new Date().toLocaleTimeString()}`;
+      await sendAlert(alertMsg);
+      await triggerWatchdogShutdown(alertMsg);
+    }
   }
 }

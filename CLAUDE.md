@@ -32,6 +32,7 @@ pnpm run test         # Run all tests (Vitest)
 pnpm run start:prod   # Build + start with pm2 (auto-restart, logging)
 pnpm run stop:prod    # Stop pm2 process
 pnpm run logs         # Tail pm2 logs
+pnpm run recent       # Show last 10 turns from most recent session (quick debugging)
 pnpm run memory:wipe  # Wipe all archived memories (dev utility)
 pnpm run dashboard    # Start dashboard dev server (port 3000)
 ```

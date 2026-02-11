@@ -1,3 +1,5 @@
+const path = require("node:path");
+
 module.exports = {
   apps: [
     {
@@ -14,6 +16,7 @@ module.exports = {
       merge_logs: true,
       env: {
         NODE_ENV: "production",
+        PATH: `${path.resolve("node_modules/.bin")}:${process.env.PATH}`,
       },
     },
     {

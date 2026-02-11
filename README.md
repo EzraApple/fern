@@ -174,6 +174,36 @@ pnpm run stop:prod
 
 pm2 auto-restarts on crash (up to 15 times). `caffeinate` runs alongside Fern to keep the machine awake while on power (safe to close the lid). The watchdog sends a WhatsApp alert if critical systems fail repeatedly, then shuts down gracefully.
 
+### Observability Dashboard
+
+The dashboard is a separate Next.js app that connects to the Fern server's API:
+
+```bash
+# Start the dashboard (Fern server must already be running)
+pnpm run dashboard        # Starts on http://localhost:3000
+
+# The dashboard proxies /api/* requests to the Fern server at http://127.0.0.1:4000.
+# Override with FERN_API_URL if the Fern server is on a different host/port:
+FERN_API_URL=http://192.168.1.50:4000 pnpm run dashboard
+```
+
+### Troubleshooting
+
+If the dashboard shows no data, check the diagnostic endpoint:
+
+```bash
+# Returns status of each subsystem (OpenCode, memory DB)
+curl http://localhost:4000/api/debug | python3 -m json.tool
+
+# Test individual endpoints
+curl http://localhost:4000/api/sessions    # Should list sessions
+curl http://localhost:4000/api/memories    # Should list memories
+curl http://localhost:4000/api/tools       # Should list tools
+
+# Check pm2 logs for [Dashboard API] errors
+pnpm run logs
+```
+
 ## Key Design Decisions
 
 | Decision | Choice | Rationale |

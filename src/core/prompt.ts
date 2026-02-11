@@ -23,7 +23,8 @@ const CHANNEL_PROMPTS: Record<string, string> = {
 - keep messages short, a few sentences max
 - use dashes for lists
 - minimal emojis
-- lead with the key point, expand only if asked`,
+- lead with the key point, expand only if asked
+- for tasks that need multiple tool calls, send a quick acknowledgment first ("on it", "lemme check", etc.) so the user isn't left waiting in silence. then do the work and report results.`,
 
   webchat: `## Channel: WebChat
 Tone: Professional but approachable.

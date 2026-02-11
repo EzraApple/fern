@@ -25,5 +25,14 @@ module.exports = {
       error_file: "logs/caffeinate-error.log",
       out_file: "logs/caffeinate-out.log",
     },
+    {
+      name: "ngrok",
+      script: "ngrok",
+      args: "http 4000 --domain biconically-unconducive-travis.ngrok-free.dev",
+      autorestart: true,
+      interpreter: "none",
+      error_file: "logs/ngrok-error.log",
+      out_file: "logs/ngrok-out.log",
+    },
   ],
 };

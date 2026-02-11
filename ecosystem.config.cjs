@@ -16,5 +16,14 @@ module.exports = {
         NODE_ENV: "production",
       },
     },
+    {
+      name: "caffeinate",
+      script: "caffeinate",
+      args: "-s",
+      autorestart: true,
+      interpreter: "none",
+      error_file: "logs/caffeinate-error.log",
+      out_file: "logs/caffeinate-out.log",
+    },
   ],
 };

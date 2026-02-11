@@ -145,7 +145,10 @@ These directories are created automatically — no manual setup needed:
 For running Fern unattended on a laptop with auto-restart and failure alerts:
 
 ```bash
-# Install pm2 (if not already)
+# One-time global setup
+npm i -g pm2
+
+# Install dependencies
 pnpm install
 
 # Add production env vars to .env
@@ -153,8 +156,13 @@ FERN_API_SECRET=<random-secret>           # Protects internal APIs
 FERN_WEBHOOK_URL=https://your.ngrok.io    # Twilio signature verification
 FERN_ALERT_PHONE=+15551234567             # WhatsApp alert recipient
 
-# Build and start with pm2
+# Build and start with pm2 (also starts caffeinate to prevent sleep)
+pnpm run build
 pnpm run start:prod
+
+# Persist across reboots (one-time)
+pm2 startup            # copy+paste the command it prints, then:
+pm2 save               # saves current process list
 
 # Monitor
 pnpm run logs          # Tail logs
@@ -164,7 +172,7 @@ pm2 status             # Process status
 pnpm run stop:prod
 ```
 
-pm2 auto-restarts on crash (up to 15 times). The watchdog sends a WhatsApp alert if critical systems fail repeatedly, then shuts down gracefully.
+pm2 auto-restarts on crash (up to 15 times). `caffeinate` runs alongside Fern to keep the machine awake while on power (safe to close the lid). The watchdog sends a WhatsApp alert if critical systems fail repeatedly, then shuts down gracefully.
 
 ## Key Design Decisions
 

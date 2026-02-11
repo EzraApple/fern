@@ -35,27 +35,40 @@ export function createWhatsAppWebhookRoutes(adapter: WhatsAppAdapter): Hono {
     const phoneNumber = from.replace("whatsapp:", "");
     const sessionId = adapter.deriveSessionId(phoneNumber);
 
-    try {
-      const result = await runAgentLoop({
-        sessionId,
-        message: messageBody,
-        channelName: "whatsapp",
-        channelUserId: phoneNumber,
-      });
+    // Fire agent loop in background — Twilio times out at ~15s but the agent
+    // loop can run for minutes. Return 202 immediately so Twilio doesn't retry.
+    void (async () => {
+      try {
+        const result = await runAgentLoop({
+          sessionId,
+          message: messageBody,
+          channelName: "whatsapp",
+          channelUserId: phoneNumber,
+        });
 
-      await adapter.send({
-        channelName: "whatsapp",
-        channelUserId: phoneNumber,
-        content: result.response,
-      });
+        await adapter.send({
+          channelName: "whatsapp",
+          channelUserId: phoneNumber,
+          content: result.response,
+        });
+      } catch (error) {
+        console.error("[WhatsApp] Background processing error:", error);
+        const reason = error instanceof Error ? error.message : "unknown error";
+        try {
+          await adapter.send({
+            channelName: "whatsapp",
+            channelUserId: phoneNumber,
+            content: `[Fern] Error processing your message: ${reason}. Try again.`,
+          });
+        } catch (sendError) {
+          console.error("[WhatsApp] Failed to send error message to user:", sendError);
+        }
+      }
+    })();
 
-      // Return empty TwiML to prevent Twilio from sending a duplicate reply
-      c.header("Content-Type", "text/xml");
-      return c.body("<Response></Response>");
-    } catch (error) {
-      console.error("[WhatsApp] Webhook error:", error);
-      return c.text("Internal server error", 500);
-    }
+    // Return empty TwiML immediately to prevent Twilio timeout/retry
+    c.header("Content-Type", "text/xml");
+    return c.body("<Response></Response>", 202);
   });
 
   return app;

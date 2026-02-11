@@ -45,10 +45,17 @@ function OverviewCard({
 }
 
 export default function OverviewPage() {
-  const { data: sessions } = useSessions();
-  const { data: memories } = useMemories();
-  const { data: archives } = useArchives();
-  const { data: prs } = usePRs("all");
+  const { data: sessions, error: sessionsError } = useSessions();
+  const { data: memories, error: memoriesError } = useMemories();
+  const { data: archives, error: archivesError } = useArchives();
+  const { data: prs, error: prsError } = usePRs("all");
+
+  const errors = [
+    sessionsError && `Sessions: ${sessionsError.message}`,
+    memoriesError && `Memories: ${memoriesError.message}`,
+    archivesError && `Archives: ${archivesError.message}`,
+    prsError && `Pull Requests: ${prsError.message}`,
+  ].filter(Boolean);
 
   return (
     <div>
@@ -58,6 +65,29 @@ export default function OverviewPage() {
       <p className="mb-8" style={{ color: "var(--text-secondary)" }}>
         Agent observability dashboard
       </p>
+
+      {errors.length > 0 && (
+        <div
+          className="rounded-lg p-4 mb-6 border text-sm"
+          style={{
+            backgroundColor: "rgba(239, 68, 68, 0.1)",
+            borderColor: "rgba(239, 68, 68, 0.3)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <p className="font-semibold mb-1" style={{ color: "#ef4444" }}>
+            Failed to load data
+          </p>
+          {errors.map((err) => (
+            <p key={err} className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              {err}
+            </p>
+          ))}
+          <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+            Run <code>curl http://localhost:4000/api/debug</code> for diagnostics
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <OverviewCard

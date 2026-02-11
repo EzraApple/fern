@@ -6,7 +6,8 @@
     "src/core/github-service.ts",
     "src/core/workspace-git.ts",
     "src/core/workspace.ts",
-    "apps/**"
+    "apps/**",
+    "ecosystem.config.cjs"
   ],
   "ignoreDependencies": ["@octokit/app", "@octokit/rest", "@opencode-ai/plugin", "opencode-ai"]
 }

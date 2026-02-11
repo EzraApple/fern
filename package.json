@@ -27,6 +27,7 @@
     "stop:prod": "pm2 stop fern",
     "logs": "pm2 logs fern",
     "memory:wipe": "rm -rf ~/.fern/memory ~/.fern/sessions ~/.local/share/opencode/storage && echo 'Full wipe: memory DB, archives, sessions, OpenCode storage.'",
+    "recent": "npx tsx scripts/recent-turns.ts",
     "dashboard": "pnpm --filter @fern/dashboard dev",
     "dashboard:build": "pnpm --filter @fern/dashboard build"
   },

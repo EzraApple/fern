@@ -30,9 +30,14 @@ perform_update() {
     cp -r dist "$BACKUP_DIR"
   fi
 
-  # Pull
-  log "Running git pull origin main..."
-  if ! git pull origin main; then
+  # Ensure we're on main and pull latest
+  log "Checking out main and pulling..."
+  if ! git checkout main 2>/dev/null; then
+    log "ERROR: git checkout main failed — restoring backup"
+    restore_backup
+    return 1
+  fi
+  if ! git pull --ff-only origin main; then
     log "ERROR: git pull failed — restoring backup"
     restore_backup
     return 1

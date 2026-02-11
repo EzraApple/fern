@@ -24,6 +24,7 @@ All core phases complete (MVP, Self-Improvement, Memory, Observability, Scheduli
 - **Memory System**: SQLite + sqlite-vec powered memory with OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` for facts/preferences/learnings. Hybrid vector + FTS5 search (`memory_search` → `memory_read`)
 - **Scheduling**: SQLite job queue with background polling loop. `schedule` tool creates one-shot or recurring (cron) jobs. Each job stores a self-contained prompt that fires a fresh agent session with full tool access. `send_message` tool enables proactive outbound messaging to any channel.
 - **Observability Dashboard**: Next.js 15 app (`apps/dashboard/`) with views for sessions, memory, tool analytics, GitHub PRs, and cost tracking. Backed by a public dashboard API on the Fern server.
+- **Skills & MCP**: On-demand skills (`adding-skills`, `adding-mcps`, `adding-tools`) for self-guided learning. Fetch MCP for web content retrieval. Configured in `src/.opencode/opencode.jsonc`.
 - **Configuration**: JSON5 config + .env support for API keys, GitHub App credentials, and memory settings
 
 ### Quick Start
@@ -96,7 +97,7 @@ fern/                          # pnpm monorepo
 │   ├── channels/              # Channel adapters (WhatsApp via Twilio)
 │   ├── memory/                # Async archival, persistent memory, hybrid search
 │   ├── scheduler/             # Job scheduling (types, config, db, loop)
-│   └── .opencode/tool/        # 14 tools (auto-discovered by OpenCode)
+│   └── .opencode/             # OpenCode config, tools, and skills
 ├── apps/
 │   └── dashboard/             # Next.js 15 observability dashboard
 ├── config/                    # Configuration files + system prompt
@@ -172,6 +173,7 @@ pm2 auto-restarts on crash (up to 15 times). The watchdog sends a WhatsApp alert
 | Core runtime | Single Node process | Simplicity, no distributed state |
 | Session storage | OpenCode file-based | Managed by OpenCode SDK, tracks diffs/parts/messages |
 | Tool system | OpenCode auto-discovery + HTTP proxy | Auto-loaded from `.opencode/tool/`, native modules via internal API |
+| Skills & MCP | On-demand skills + Fetch MCP | Agent loads knowledge when needed; web access for research |
 | Memory (archival) | Async observer + JSON chunks + SQLite + embeddings | Captures history before compaction, two-phase retrieval |
 | Memory (persistent) | SQLite + sqlite-vec + OpenAI embeddings | Agent-writable, vector-searchable facts/preferences/learnings |
 | Scheduling | SQLite + setInterval + PQueue | Prompt-based jobs, agent autonomy, no external deps |

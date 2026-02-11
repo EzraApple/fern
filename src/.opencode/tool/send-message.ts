@@ -15,7 +15,7 @@ function getAuthHeaders(): Record<string, string> {
 
 export const send_message = tool({
   description:
-    "Send a message to a user on a specific channel (e.g., WhatsApp). Use this to proactively reach out to someone.",
+    "Send a message to a user on a specific channel. Use this to proactively reach out — in scheduled jobs, follow-ups, or when you need to notify someone outside the current conversation. For WhatsApp: channel is 'whatsapp', recipient is phone number with country code (e.g., '+1234567890'). Messages over 1600 characters are auto-chunked. Keep messages concise and conversational — this goes directly to someone's phone.",
   args: {
     channel: tool.schema.string().describe("The channel to send on (e.g., 'whatsapp')"),
     to: tool.schema

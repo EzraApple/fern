@@ -15,7 +15,7 @@ function getAuthHeaders(): Record<string, string> {
 
 export const memory_write = tool({
   description:
-    "Save a persistent memory — a fact, preference, or learning that should be remembered across conversations. Use this to store important information you want to recall later.",
+    "Save a persistent memory that should be remembered across conversations. Use for durable information: user preferences, important facts, or lessons learned from mistakes. Don't store transient conversation details or things that will change soon. Good tags improve search recall — use 2-3 specific, descriptive tags per memory. Before writing a duplicate, search first to check if the memory already exists.",
   args: {
     type: tool.schema
       .enum(["fact", "preference", "learning"])

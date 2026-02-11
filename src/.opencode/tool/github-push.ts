@@ -4,7 +4,7 @@ import { getWorkspaceById } from "../../core/workspace.js";
 
 export const github_push = tool({
   description:
-    "Push the current branch to the remote repository. This makes the changes available for PR creation. Requires GitHub authentication to be configured.",
+    "Push the current branch to the remote repository. Call after github_commit and before github_pr. This makes the branch available on GitHub for PR creation. Uses the Fern GitHub App for authentication — no personal credentials needed.",
   args: {
     workspaceId: tool.schema.string().describe("Workspace ID from github_clone"),
   },

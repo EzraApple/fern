@@ -4,7 +4,7 @@ import { cleanupWorkspace, getWorkspaceById } from "../../core/workspace.js";
 
 export const github_pr = tool({
   description:
-    "Create a pull request. The PR will be created by the Fern GitHub App (not your personal account). Use this instead of 'gh pr create'. If you have a workspace, it will be cleaned up after PR creation.",
+    "Create a pull request on GitHub. This is the final step of the self-improvement workflow. The PR is created by the Fern GitHub App, not a personal account. Always use this instead of 'gh pr create' via bash. Write a descriptive body: explain what changed, why, and how to verify. Include the workspace ID to auto-clean the workspace after PR creation. Prefix PR titles with '[Fern]' for self-improvement changes.",
   args: {
     repo: tool.schema
       .string()

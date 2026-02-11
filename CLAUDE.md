@@ -48,6 +48,7 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 | `src/core/workspace.ts` | Workspace lifecycle (create, cleanup, stale detection) |
 | `src/core/workspace-git.ts` | Git operations in workspace (branch, commit, push) |
 | `src/types/workspace.ts` | Workspace and git commit type definitions |
+| `src/.opencode/opencode.jsonc` | OpenCode config (MCP servers, permissions) |
 | `src/.opencode/tool/` | Tool definitions (OpenCode auto-discovery) |
 | `src/.opencode/tool/github-*.ts` | 6 GitHub tools for self-improvement workflow |
 | `src/.opencode/tool/memory-write.ts` | Save persistent memories (facts, preferences, learnings) via HTTP |
@@ -112,6 +113,13 @@ export const echo = tool({
 ```
 
 Tools are auto-discovered by OpenCode at startup (no registry needed).
+
+### MCP Servers
+MCP (Model Context Protocol) servers provide external tools, configured in `src/.opencode/opencode.jsonc`:
+- **Local MCPs**: Run as child processes (stdio transport). Config: `{ "type": "local", "command": [...] }`
+- **Remote MCPs**: Connect to HTTP endpoints. Config: `{ "type": "remote", "url": "..." }`
+- Tools auto-prefixed with server name: server `"context7"` → tool `context7_resolve_library_id`
+- Current MCPs: `context7` (remote HTTP, no API key — up-to-date code documentation)
 
 ### Session Storage
 - OpenCode manages sessions in `~/.local/share/opencode/storage/`
@@ -248,7 +256,9 @@ fern/                              # pnpm monorepo
 │   ├── channels/                  # Channel adapters (WhatsApp via Twilio)
 │   ├── memory/                    # Async archival, persistent memory, hybrid search
 │   ├── scheduler/                 # Job scheduling (types, config, db, loop)
-│   └── .opencode/tool/            # 14 tools (auto-discovered by OpenCode)
+│   └── .opencode/                 # OpenCode configuration
+│       ├── opencode.jsonc         # MCP servers, permissions
+│       └── tool/                  # 14 tools (auto-discovered)
 ├── apps/
 │   └── dashboard/                 # Next.js 15 observability dashboard
 ├── config/                        # Config files + system prompt

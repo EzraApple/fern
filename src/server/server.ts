@@ -6,6 +6,7 @@ import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
 import { runAgentLoop } from "../core/index.js";
 import { createChannelApi } from "./channel-api.js";
 import { createDashboardApi } from "./dashboard-api.js";
+import { internalAuth } from "./internal-auth.js";
 import { createMemoryApi } from "./memory-api.js";
 import { createSchedulerApi } from "./scheduler-api.js";
 import { createWhatsAppWebhookRoutes } from "./webhooks.js";
@@ -67,6 +68,9 @@ export function createServer(options?: ServerOptions) {
       return c.json({ error: errorMessage }, 500);
     }
   });
+
+  // Protect all internal API routes with shared-secret auth
+  app.use("/internal/*", internalAuth());
 
   // Mount internal memory API
   app.route("/internal/memory", createMemoryApi());

@@ -4,6 +4,15 @@ function getFernUrl(): string {
   return process.env.FERN_API_URL || `http://127.0.0.1:${process.env.FERN_PORT || "4000"}`;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const secret = process.env.FERN_API_SECRET;
+  if (secret) {
+    headers["X-Fern-Secret"] = secret;
+  }
+  return headers;
+}
+
 interface ChunkMessage {
   role: string;
   parts: Array<{
@@ -87,7 +96,7 @@ export const memory_read = tool({
     try {
       const res = await fetch(`${getFernUrl()}/internal/memory/read`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           threadId: args.threadId,
           chunkId: args.chunkId,

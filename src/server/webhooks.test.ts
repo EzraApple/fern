@@ -5,6 +5,11 @@ vi.mock("../core/index.js", () => ({
   runAgentLoop: vi.fn(),
 }));
 
+// Mock the config
+vi.mock("../config/config.js", () => ({
+  getWebhookBaseUrl: vi.fn(),
+}));
+
 // Mock the WhatsApp adapter
 const mockSend = vi.fn().mockResolvedValue(undefined);
 const mockDeriveSessionId = vi.fn((phone: string) => {
@@ -29,16 +34,19 @@ const mockAdapter = {
 
 import { Hono } from "hono";
 import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
+import { getWebhookBaseUrl } from "../config/config.js";
 import { runAgentLoop } from "../core/index.js";
 import { createWhatsAppWebhookRoutes } from "./webhooks.js";
 
 const mockRunAgentLoop = vi.mocked(runAgentLoop);
+const mockGetWebhookBaseUrl = vi.mocked(getWebhookBaseUrl);
 
 describe("createWhatsAppWebhookRoutes", () => {
   let app: Hono;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetWebhookBaseUrl.mockReturnValue(null);
     const root = new Hono();
     root.route(
       "/webhooks/whatsapp",
@@ -211,5 +219,97 @@ describe("createWhatsAppWebhookRoutes", () => {
     expect(res.status).toBe(500);
     const text = await res.text();
     expect(text).toBe("Internal server error");
+  });
+
+  describe("Twilio signature verification", () => {
+    it("returns 403 when X-Twilio-Signature header is missing and webhook URL is configured", async () => {
+      mockGetWebhookBaseUrl.mockReturnValue("https://example.ngrok.io");
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("Body", "Hello");
+
+      const res = await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      expect(res.status).toBe(403);
+      expect(await res.text()).toBe("Forbidden");
+    });
+
+    it("returns 403 when signature is invalid", async () => {
+      mockGetWebhookBaseUrl.mockReturnValue("https://example.ngrok.io");
+      mockAdapter.validateWebhook.mockReturnValue(false);
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("Body", "Hello");
+
+      const res = await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Twilio-Signature": "bad-signature",
+        },
+        body: formData.toString(),
+      });
+
+      expect(res.status).toBe(403);
+      expect(await res.text()).toBe("Forbidden");
+    });
+
+    it("processes request when signature is valid", async () => {
+      mockGetWebhookBaseUrl.mockReturnValue("https://example.ngrok.io");
+      mockAdapter.validateWebhook.mockReturnValue(true);
+      mockRunAgentLoop.mockResolvedValue({
+        response: "ok",
+        sessionId: "whatsapp_+15551234567",
+        toolCalls: [],
+      });
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("Body", "Hello");
+
+      const res = await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Twilio-Signature": "valid-signature",
+        },
+        body: formData.toString(),
+      });
+
+      expect(res.status).toBe(200);
+      expect(mockAdapter.validateWebhook).toHaveBeenCalledWith(
+        "valid-signature",
+        "https://example.ngrok.io/webhooks/whatsapp",
+        expect.objectContaining({ From: "whatsapp:+15551234567" })
+      );
+    });
+
+    it("skips verification when webhook URL is not configured", async () => {
+      mockGetWebhookBaseUrl.mockReturnValue(null);
+      mockRunAgentLoop.mockResolvedValue({
+        response: "ok",
+        sessionId: "whatsapp_+15551234567",
+        toolCalls: [],
+      });
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("Body", "Hello");
+
+      const res = await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      expect(res.status).toBe(200);
+      expect(mockAdapter.validateWebhook).not.toHaveBeenCalled();
+    });
   });
 });

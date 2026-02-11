@@ -9,8 +9,10 @@ import { serve } from "@hono/node-server";
 import { WhatsAppAdapter } from "./channels/index.js";
 import type { ChannelAdapter } from "./channels/types.js";
 import { getTwilioCredentials, loadConfig } from "./config/index.js";
+import { initAlerts, sendAlert } from "./core/alerts.js";
 import { loadBasePrompt } from "./core/index.js";
 import * as opencodeService from "./core/opencode-service.js";
+import { initWatchdog, recordOpenCodeFailure, resetOpenCodeFailures } from "./core/watchdog.js";
 import * as workspace from "./core/workspace.js";
 import { closeDb, initMemoryDb } from "./memory/index.js";
 import { initScheduler, stopScheduler } from "./scheduler/index.js";
@@ -35,9 +37,57 @@ async function main() {
     // No stale processes — expected
   }
 
+  // Setup cleanup handler (defined early so watchdog can reference it)
+  let shuttingDown = false;
+  const cleanup = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    console.info("\nShutting down...");
+
+    console.info("  Stopping scheduler...");
+    stopScheduler();
+    console.info("  ✓ Scheduler stopped");
+
+    console.info("  Closing memory database...");
+    closeDb();
+    console.info("  ✓ Memory database closed");
+
+    console.info("  Cleaning up workspaces...");
+    workspace.cleanupAllWorkspaces();
+    console.info("  ✓ Workspaces cleaned");
+
+    console.info("  Stopping OpenCode server...");
+    await opencodeService.cleanup();
+    console.info("  ✓ OpenCode server stopped");
+
+    // Kill any orphaned opencode child processes
+    try {
+      execSync("pkill -f 'opencode serve' 2>/dev/null", { stdio: "ignore" });
+    } catch {
+      // No orphans — expected
+    }
+
+    console.info("✓ Shutdown complete");
+    process.exit(0);
+  };
+
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
+
+  // Initialize alert system (uses Twilio directly, not through agent)
+  initAlerts();
+
+  // Initialize watchdog with shutdown handler
+  initWatchdog(async (reason: string) => {
+    console.error(`[Watchdog] Triggering shutdown: ${reason}`);
+    await cleanup();
+  });
+
   // Initialize OpenCode server
   console.info("Initializing OpenCode server...");
   const opencode = await opencodeService.ensureOpenCode();
+  resetOpenCodeFailures();
   console.info(`✓ OpenCode server running at ${opencode.url}`);
 
   // Initialize memory database (SQLite + sqlite-vec + JSONL migration)
@@ -77,44 +127,6 @@ async function main() {
   }
   console.info("");
 
-  // Setup cleanup handlers
-  let shuttingDown = false;
-  const cleanup = async () => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-
-    console.info("\nShutting down...");
-
-    console.info("  Stopping scheduler...");
-    stopScheduler();
-    console.info("  ✓ Scheduler stopped");
-
-    console.info("  Closing memory database...");
-    closeDb();
-    console.info("  ✓ Memory database closed");
-
-    console.info("  Cleaning up workspaces...");
-    workspace.cleanupAllWorkspaces();
-    console.info("  ✓ Workspaces cleaned");
-
-    console.info("  Stopping OpenCode server...");
-    await opencodeService.cleanup();
-    console.info("  ✓ OpenCode server stopped");
-
-    // Kill any orphaned opencode child processes
-    try {
-      execSync("pkill -f 'opencode serve' 2>/dev/null", { stdio: "ignore" });
-    } catch {
-      // No orphans — expected
-    }
-
-    console.info("✓ Shutdown complete");
-    process.exit(0);
-  };
-
-  process.on("SIGINT", cleanup);
-  process.on("SIGTERM", cleanup);
-
   serve(
     {
       fetch: app.fetch,
@@ -139,7 +151,15 @@ async function main() {
   );
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error("Failed to start Fern:", error);
+
+  // Track startup failures for watchdog (persists across pm2 restarts)
+  const exceeded = recordOpenCodeFailure();
+  if (exceeded) {
+    const msg = `Fern shutting down: startup failed after repeated attempts at ${new Date().toLocaleTimeString()}`;
+    await sendAlert(msg);
+  }
+
   process.exit(1);
 });

@@ -186,3 +186,15 @@ export function getTwilioCredentials(): TwilioCredentials | null {
 
   return { accountSid, authToken, fromNumber };
 }
+
+/** Returns the internal API shared secret, or null if not set */
+export function getApiSecret(): string | null {
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  return process.env["FERN_API_SECRET"] || null;
+}
+
+/** Returns the public webhook base URL for Twilio signature verification, or null if not set */
+export function getWebhookBaseUrl(): string | null {
+  // biome-ignore lint/complexity/useLiteralKeys: TypeScript requires bracket notation for index signatures
+  return process.env["FERN_WEBHOOK_URL"] || null;
+}

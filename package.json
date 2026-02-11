@@ -23,6 +23,9 @@
     "test:core-tools": "vitest run src/core/agent src/core/prompt src/config/",
     "test:scheduler": "vitest run src/scheduler/ src/server/scheduler-api src/server/channel-api",
     "ci": "pnpm run lint && pnpm run tsc",
+    "start:prod": "pnpm run build && pm2 start ecosystem.config.cjs",
+    "stop:prod": "pm2 stop fern",
+    "logs": "pm2 logs fern",
     "memory:wipe": "rm -rf ~/.fern/memory ~/.fern/sessions ~/.local/share/opencode/storage && echo 'Full wipe: memory DB, archives, sessions, OpenCode storage.'",
     "dashboard": "pnpm --filter @fern/dashboard dev",
     "dashboard:build": "pnpm --filter @fern/dashboard build"
@@ -58,6 +61,7 @@
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.0.18",
     "knip": "^5.0.0",
+    "pm2": "^6.0.0",
     "typescript": "^5.7.0",
     "vitest": "^4.0.18"
   }

@@ -20,7 +20,7 @@ const CHANNEL_PROMPTS: Record<string, string> = {
   whatsapp: `## Channel: WhatsApp
 - plain text only, no markdown
 - no capitalization unless for emphasis
-- keep messages short, a few sentences max
+- keep messages short, a few sentences max. break longer responses into multiple messages
 - use dashes for lists
 - minimal emojis
 - lead with the key point, expand only if asked

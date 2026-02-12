@@ -9,6 +9,7 @@ vi.mock("@/tasks/db.js", () => ({
   getNextTask: vi.fn(),
 }));
 
+import { createTasksApi } from "@/server/tasks-api.js";
 import {
   generateTaskId,
   getNextTask,
@@ -18,7 +19,6 @@ import {
   updateTask,
 } from "@/tasks/db.js";
 import type { Task } from "@/tasks/types.js";
-import { createTasksApi } from "@/server/tasks-api.js";
 import { Hono } from "hono";
 
 const mockInsertTask = vi.mocked(insertTask);

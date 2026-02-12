@@ -10,6 +10,8 @@ import { listMemories } from "@/memory/db/memories.js";
 import { listSummaries } from "@/memory/db/summaries.js";
 import { searchMemory } from "@/memory/search.js";
 import { readChunk } from "@/memory/storage.js";
+import { listJobs } from "@/scheduler/db.js";
+import type { JobStatus } from "@/scheduler/types.js";
 import { Hono } from "hono";
 import { z } from "zod";
 
@@ -202,6 +204,20 @@ export function createDashboardApi(): Hono {
     } catch (error) {
       console.error("[Dashboard API] GET /tools failed:", error);
       return c.json({ error: errorMsg(error), tools: [] }, 500);
+    }
+  });
+
+  // ── Scheduler ────────────────────────────────────────────────────────────
+
+  api.get("/scheduler/jobs", (c) => {
+    try {
+      const status = c.req.query("status") as JobStatus | undefined;
+      const limit = c.req.query("limit") ? Number(c.req.query("limit")) : undefined;
+      const jobs = listJobs({ status, limit });
+      return c.json({ jobs });
+    } catch (error) {
+      console.error("[Dashboard API] GET /scheduler/jobs failed:", error);
+      return c.json({ error: errorMsg(error), jobs: [] }, 500);
     }
   });
 

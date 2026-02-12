@@ -195,3 +195,22 @@ export interface PRStatus {
     submittedAt: string;
   }>;
 }
+
+// Scheduler types
+export type JobStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type JobType = "one_shot" | "recurring";
+
+export interface ScheduledJob {
+  id: string;
+  type: JobType;
+  status: JobStatus;
+  prompt: string;
+  scheduledAt: string;
+  cronExpr?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  lastRunResponse?: string;
+  lastError?: string;
+  metadata: Record<string, unknown>;
+}

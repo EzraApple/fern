@@ -108,3 +108,18 @@ export async function fetchTools(): Promise<string[]> {
   const data = await fetchJSON<{ tools: string[] }>(`${API_BASE}/tools`);
   return data.tools;
 }
+
+// Scheduler
+export async function fetchScheduledJobs(options?: {
+  status?: JobStatus;
+  limit?: number;
+}): Promise<ScheduledJob[]> {
+  const params = new URLSearchParams();
+  if (options?.status) params.set("status", options.status);
+  if (options?.limit) params.set("limit", String(options.limit));
+  const qs = params.toString();
+  const data = await fetchJSON<{ jobs: ScheduledJob[] }>(
+    `${API_BASE}/scheduler/jobs${qs ? `?${qs}` : ""}`
+  );
+  return data.jobs;
+}

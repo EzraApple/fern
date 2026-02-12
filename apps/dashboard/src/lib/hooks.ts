@@ -36,3 +36,9 @@ export function usePRs(state = "all") {
 export function useTools() {
   return useSWR("tools", () => api.fetchTools());
 }
+
+export function useScheduledJobs(status?: JobStatus) {
+  return useSWR(["scheduled-jobs", status], () => api.fetchScheduledJobs({ status }), {
+    refreshInterval: 5_000, // Refresh every 5s to catch status changes
+  });
+}

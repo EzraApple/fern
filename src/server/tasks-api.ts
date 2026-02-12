@@ -90,7 +90,9 @@ export function createTasksApi(): Hono {
 
     updateTask(id, parsed.data);
     const updated = getTaskById(id);
-    return c.json(updated);
+    // Return updated task + full list (infer threadId from task record)
+    const tasks = listTasksByThread(existing.threadId);
+    return c.json({ task: updated, tasks });
   });
 
   api.get("/next", (c) => {

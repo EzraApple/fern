@@ -15,7 +15,6 @@ function getAuthHeaders(): Record<string, string> {
 
 interface Task {
   id: string;
-  threadId: string;
   title: string;
   description?: string;
   status: string;
@@ -40,7 +39,7 @@ function formatTaskList(tasks: Task[]): string {
 
 export const task_update = tool({
   description:
-    "Update a task's status or details. Mark `in_progress` when you start working on it, `done` when finished, `cancelled` if no longer relevant. Returns the full task list after updating.",
+    "Update a task's status or details. Mark `in_progress` when you start working on it, `done` when finished, `cancelled` if no longer relevant. Returns the full task list after updating. No threadId needed — inferred from the task.",
   args: {
     id: tool.schema.string().describe("Task ID (e.g., 'task_01ABC...')"),
     status: tool.schema
@@ -49,9 +48,6 @@ export const task_update = tool({
       .describe("New status"),
     title: tool.schema.string().optional().describe("Updated title"),
     description: tool.schema.string().optional().describe("Updated description"),
-    threadId: tool.schema
-      .string()
-      .describe("Your session ID from the system prompt (needed to return the full task list)"),
   },
   async execute(args) {
     try {
@@ -60,28 +56,18 @@ export const task_update = tool({
       if (args.title) updateBody.title = args.title;
       if (args.description) updateBody.description = args.description;
 
-      const updateRes = await fetch(`${getFernUrl()}/internal/tasks/update/${args.id}`, {
+      const res = await fetch(`${getFernUrl()}/internal/tasks/update/${args.id}`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(updateBody),
       });
-      if (!updateRes.ok) {
-        const err = await updateRes.text();
+      if (!res.ok) {
+        const err = await res.text();
         return `Error updating task: ${err}`;
       }
 
-      // Return full task list for context
-      const listRes = await fetch(`${getFernUrl()}/internal/tasks/list`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ threadId: args.threadId }),
-      });
-      if (!listRes.ok) {
-        return `Task ${args.id} updated (could not fetch full list)`;
-      }
-
-      const tasks = (await listRes.json()) as Task[];
-      return formatTaskList(tasks);
+      const data = (await res.json()) as { task: Task; tasks: Task[] };
+      return formatTaskList(data.tasks);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return `Error updating task: ${msg}`;

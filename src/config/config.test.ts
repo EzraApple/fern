@@ -266,6 +266,8 @@ describe("config", () => {
 
     it("should return null when account SID is missing", async () => {
       mockReadFileSync.mockReturnValue("{}");
+      // Explicitly stub all env vars to ensure test isolation from real environment
+      vi.stubEnv("TWILIO_ACCOUNT_SID", "");
       vi.stubEnv("TWILIO_AUTH_TOKEN", "auth-token");
       vi.stubEnv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886");
       const { getTwilioCredentials } = await import("./config.js");
@@ -277,7 +279,9 @@ describe("config", () => {
 
     it("should return null when auth token is missing", async () => {
       mockReadFileSync.mockReturnValue("{}");
+      // Explicitly stub all env vars to ensure test isolation from real environment
       vi.stubEnv("TWILIO_ACCOUNT_SID", "AC123");
+      vi.stubEnv("TWILIO_AUTH_TOKEN", "");
       vi.stubEnv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886");
       const { getTwilioCredentials } = await import("./config.js");
 
@@ -288,8 +292,10 @@ describe("config", () => {
 
     it("should return null when from number is missing", async () => {
       mockReadFileSync.mockReturnValue("{}");
+      // Explicitly stub all env vars to ensure test isolation from real environment
       vi.stubEnv("TWILIO_ACCOUNT_SID", "AC123");
       vi.stubEnv("TWILIO_AUTH_TOKEN", "auth-token");
+      vi.stubEnv("TWILIO_WHATSAPP_FROM", "");
       const { getTwilioCredentials } = await import("./config.js");
 
       const creds = getTwilioCredentials();
@@ -299,6 +305,10 @@ describe("config", () => {
 
     it("should return null when no env vars are set", async () => {
       mockReadFileSync.mockReturnValue("{}");
+      // Explicitly stub all env vars to ensure test isolation from real environment
+      vi.stubEnv("TWILIO_ACCOUNT_SID", "");
+      vi.stubEnv("TWILIO_AUTH_TOKEN", "");
+      vi.stubEnv("TWILIO_WHATSAPP_FROM", "");
       const { getTwilioCredentials } = await import("./config.js");
 
       const creds = getTwilioCredentials();

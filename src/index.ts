@@ -5,6 +5,9 @@
  */
 
 import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { WhatsAppAdapter } from "@/channels/index.js";
 import type { ChannelAdapter } from "@/channels/types.js";
 import { getTwilioCredentials, loadConfig } from "@/config/index.js";
@@ -85,6 +88,24 @@ async function main() {
 
   // Initialize alert system (uses Twilio directly, not through agent)
   initAlerts();
+
+  // Check for new env vars flagged by the updater
+  const newKeysFlag = path.join(os.homedir(), ".fern", "new-env-keys.flag");
+  if (fs.existsSync(newKeysFlag)) {
+    try {
+      const newKeys = fs.readFileSync(newKeysFlag, "utf-8").trim().split("\n").filter(Boolean);
+      if (newKeys.length > 0) {
+        const keyList = newKeys.join(", ");
+        console.warn(`[Startup] New env vars needed: ${keyList} — add them in Doppler`);
+        void sendAlert(
+          `Update deployed but ${newKeys.length} new env var${newKeys.length > 1 ? "s" : ""} needed in Doppler: ${keyList}`
+        );
+      }
+      fs.unlinkSync(newKeysFlag);
+    } catch {
+      // Flag file read failed — non-critical, continue startup
+    }
+  }
 
   // Initialize watchdog with shutdown handler
   initWatchdog(async (reason: string) => {

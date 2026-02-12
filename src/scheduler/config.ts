@@ -1,4 +1,4 @@
-import type { SchedulerConfig } from "./types.js";
+import type { SchedulerConfig } from "@/scheduler/types.js";
 
 const DEFAULT_SCHEDULER_CONFIG: SchedulerConfig = {
   enabled: true,

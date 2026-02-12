@@ -1,5 +1,5 @@
+import { getSchedulerConfig, resetSchedulerConfig } from "@/scheduler/config.js";
 import { afterEach, describe, expect, it } from "vitest";
-import { getSchedulerConfig, resetSchedulerConfig } from "./config.js";
 
 describe("getSchedulerConfig", () => {
   afterEach(() => {

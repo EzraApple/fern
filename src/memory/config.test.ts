@@ -1,7 +1,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
+import { getMemoryConfig } from "@/memory/config.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getMemoryConfig } from "./config.js";
 
 const ENV_KEYS = [
   "FERN_MEMORY_ENABLED",
@@ -36,7 +36,7 @@ describe("getMemoryConfig", () => {
   });
 
   async function getFreshConfig() {
-    const mod = await import("./config.js");
+    const mod = await import("@/memory/config.js");
     return mod.getMemoryConfig();
   }
 

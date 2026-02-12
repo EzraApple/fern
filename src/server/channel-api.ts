@@ -1,6 +1,6 @@
+import type { ChannelAdapter } from "@/channels/types.js";
 import { Hono } from "hono";
 import { z } from "zod";
-import type { ChannelAdapter } from "../channels/types.js";
 
 const SendSchema = z.object({
   channel: z.string().min(1),

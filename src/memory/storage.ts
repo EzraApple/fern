@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getMemoryConfig } from "./config.js";
-import type { ArchiveChunk, ArchiveWatermark } from "./types.js";
+import { getMemoryConfig } from "@/memory/config.js";
+import type { ArchiveChunk, ArchiveWatermark } from "@/memory/types.js";
 
 function getArchivesDir(threadId: string): string {
   const config = getMemoryConfig();

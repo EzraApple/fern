@@ -1,5 +1,5 @@
+import type { MemoryArchivalConfig, OpenCodeMessage } from "@/memory/types.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MemoryArchivalConfig, OpenCodeMessage } from "./types.js";
 
 // Mock OpenAI
 const mockCreate = vi.fn();
@@ -14,12 +14,12 @@ vi.mock("openai", () => ({
 }));
 
 // Mock config
-vi.mock("../config/config.js", () => ({
+vi.mock("@/config/config.js", () => ({
   getOpenAIApiKey: () => "test-api-key",
   getMoonshotApiKey: () => undefined,
 }));
 
-import { summarizeChunk } from "./summarizer.js";
+import { summarizeChunk } from "@/memory/summarizer.js";
 
 const testConfig: MemoryArchivalConfig = {
   enabled: true,

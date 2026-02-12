@@ -1,38 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies before importing
-vi.mock("./opencode-service.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./opencode-service.js")>();
+vi.mock("@/core/opencode/queries.js", () => ({
+  getLastResponse: vi.fn(),
+  listTools: vi.fn(),
+  subscribeToEvents: vi.fn(),
+  getSessionMessages: vi.fn(),
+}));
+
+vi.mock("@/core/opencode/session.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/core/opencode/session.js")>();
   return {
     ...actual,
     getOrCreateSession: vi.fn(),
-    listTools: vi.fn(),
-    subscribeToEvents: vi.fn(),
     prompt: vi.fn(),
-    getLastResponse: vi.fn(),
-    getSessionMessages: vi.fn(),
   };
 });
 
-vi.mock("./prompt.js", () => ({
+vi.mock("@/core/prompt.js", () => ({
   buildSystemPrompt: vi.fn(),
 }));
 
-vi.mock("../memory/index.js", () => ({
+vi.mock("@/memory/index.js", () => ({
   onTurnComplete: vi.fn(),
 }));
 
-import { onTurnComplete } from "../memory/index.js";
-import { runAgentLoop } from "./agent.js";
-import * as opencodeService from "./opencode-service.js";
-import { buildSystemPrompt } from "./prompt.js";
-import type { AgentInput } from "./types.js";
+import { runAgentLoop } from "@/core/agent.js";
+import { getLastResponse, listTools, subscribeToEvents } from "@/core/opencode/queries.js";
+import { getOrCreateSession, prompt } from "@/core/opencode/session.js";
+import { buildSystemPrompt } from "@/core/prompt.js";
+import type { AgentInput } from "@/core/types.js";
+import { onTurnComplete } from "@/memory/index.js";
 
-const mockGetOrCreateSession = vi.mocked(opencodeService.getOrCreateSession);
-const mockListTools = vi.mocked(opencodeService.listTools);
-const mockSubscribeToEvents = vi.mocked(opencodeService.subscribeToEvents);
-const mockPrompt = vi.mocked(opencodeService.prompt);
-const mockGetLastResponse = vi.mocked(opencodeService.getLastResponse);
+const mockGetOrCreateSession = vi.mocked(getOrCreateSession);
+const mockListTools = vi.mocked(listTools);
+const mockSubscribeToEvents = vi.mocked(subscribeToEvents);
+const mockPrompt = vi.mocked(prompt);
+const mockGetLastResponse = vi.mocked(getLastResponse);
 const mockBuildSystemPrompt = vi.mocked(buildSystemPrompt);
 const mockOnTurnComplete = vi.mocked(onTurnComplete);
 

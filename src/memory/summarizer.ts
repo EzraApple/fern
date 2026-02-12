@@ -1,6 +1,6 @@
+import { getMoonshotApiKey, getOpenAIApiKey } from "@/config/config.js";
+import type { MemoryArchivalConfig, OpenCodeMessage } from "@/memory/types.js";
 import OpenAI from "openai";
-import { getMoonshotApiKey, getOpenAIApiKey } from "../config/config.js";
-import type { MemoryArchivalConfig, OpenCodeMessage } from "./types.js";
 
 let primaryClient: OpenAI | null = null;
 let fallbackClient: OpenAI | null = null;

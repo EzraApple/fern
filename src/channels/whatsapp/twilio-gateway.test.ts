@@ -1,5 +1,5 @@
+import { TwilioGateway } from "@/channels/whatsapp/twilio-gateway.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TwilioGateway } from "./twilio-gateway.js";
 
 // Mock the twilio module
 vi.mock("twilio", () => {

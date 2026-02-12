@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../scheduler/db.js", () => ({
+vi.mock("@/scheduler/db.js", () => ({
   generateJobId: vi.fn().mockReturnValue("job_TEST123"),
   insertJob: vi.fn(),
   getJobById: vi.fn(),
@@ -9,10 +9,10 @@ vi.mock("../scheduler/db.js", () => ({
   deleteJob: vi.fn(),
 }));
 
+import { getJobById, insertJob, listJobs, updateJobStatus } from "@/scheduler/db.js";
+import type { ScheduledJob } from "@/scheduler/types.js";
+import { createSchedulerApi } from "@/server/scheduler-api.js";
 import { Hono } from "hono";
-import { getJobById, insertJob, listJobs, updateJobStatus } from "../scheduler/db.js";
-import type { ScheduledJob } from "../scheduler/types.js";
-import { createSchedulerApi } from "./scheduler-api.js";
 
 const mockInsertJob = vi.mocked(insertJob);
 const mockGetJobById = vi.mocked(getJobById);

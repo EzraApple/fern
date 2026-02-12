@@ -1,5 +1,5 @@
+import { getPRStatus } from "@/core/github/pr.js";
 import { tool } from "@opencode-ai/plugin";
-import { getPRStatus } from "../../core/github-service.js";
 
 export const github_pr_status = tool({
   description:

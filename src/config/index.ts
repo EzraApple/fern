@@ -4,5 +4,5 @@ export {
   getTwilioCredentials,
   getApiSecret,
   getWebhookBaseUrl,
-} from "./config.js";
-export type { TwilioCredentials } from "./config.js";
+} from "@/config/config.js";
+export type { TwilioCredentials } from "@/config/config.js";

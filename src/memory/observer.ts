@@ -1,18 +1,23 @@
-import PQueue from "p-queue";
-import { ulid } from "ulid";
-import * as opencodeService from "../core/opencode-service.js";
-import { getMemoryConfig } from "./config.js";
-import { insertSummary } from "./db.js";
-import { embedText } from "./embeddings.js";
-import { ensureStorageDirectories, readWatermark, writeChunk, writeWatermark } from "./storage.js";
-import { summarizeChunk } from "./summarizer.js";
-import { estimateMessageTokens, estimateMessagesTokens } from "./tokenizer.js";
+import { getSessionMessages } from "@/core/opencode/queries.js";
+import { getMemoryConfig } from "@/memory/config.js";
+import { insertSummary } from "@/memory/db/summaries.js";
+import { embedText } from "@/memory/embeddings.js";
+import {
+  ensureStorageDirectories,
+  readWatermark,
+  writeChunk,
+  writeWatermark,
+} from "@/memory/storage.js";
+import { summarizeChunk } from "@/memory/summarizer.js";
+import { estimateMessageTokens, estimateMessagesTokens } from "@/memory/tokenizer.js";
 import type {
   ArchiveChunk,
   ArchiveWatermark,
   OpenCodeMessage,
   SummaryIndexEntry,
-} from "./types.js";
+} from "@/memory/types.js";
+import PQueue from "p-queue";
+import { ulid } from "ulid";
 
 /** Per-thread archival queues to prevent concurrent archival on the same thread */
 const archivalQueues = new Map<string, PQueue>();
@@ -42,7 +47,7 @@ async function checkAndArchive(threadId: string, sessionId: string): Promise<voi
   const config = getMemoryConfig();
 
   // 1. Fetch all messages from OpenCode
-  const rawMessages = await opencodeService.getSessionMessages(sessionId);
+  const rawMessages = await getSessionMessages(sessionId);
   const messages = rawMessages as OpenCodeMessage[];
 
   if (messages.length === 0) return;

@@ -46,8 +46,13 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 |------|---------|
 | `src/index.ts` | Entry point, starts Hono server and OpenCode, workspace cleanup |
 | `src/core/agent.ts` | Main agent loop using OpenCode SDK |
-| `src/core/opencode-service.ts` | OpenCode server/client management, event streaming |
-| `src/core/github-service.ts` | GitHub App authentication, PR creation, status checking (Octokit) |
+| `src/core/opencode/config.ts` | OpenCode client type, port constants, `getOpenCodeConfig()` |
+| `src/core/opencode/server.ts` | OpenCode server lifecycle: `ensureOpenCode()`, `getClient()`, `cleanup()` |
+| `src/core/opencode/session.ts` | Session management: `getOrCreateSession()`, `prompt()`, `AgentTimeoutError` |
+| `src/core/opencode/queries.ts` | Event streaming, message queries: `subscribeToEvents()`, `getSessionMessages()` |
+| `src/core/github/types.ts` | `PRInfo`, `PRStatus`, `CheckStatus`, `Review`, `CreatePRParams` interfaces |
+| `src/core/github/auth.ts` | GitHub App authentication, `getOctokit()`, `getAuthenticatedCloneUrl()` |
+| `src/core/github/pr.ts` | PR operations: `createPullRequest()`, `getPRStatus()`, `listPRs()` |
 | `src/core/deploy-state.ts` | Deploy state JSON file read/write for auto-update lifecycle |
 | `src/core/workspace.ts` | Workspace lifecycle (create, cleanup, stale detection) |
 | `src/core/workspace-git.ts` | Git operations in workspace (branch, commit, push) |
@@ -59,7 +64,11 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 | `src/.opencode/tool/memory-write.ts` | Save persistent memories (facts, preferences, learnings) via HTTP |
 | `src/.opencode/tool/memory-search.ts` | Hybrid vector + FTS5 search across archives and persistent memories via HTTP |
 | `src/.opencode/tool/memory-read.ts` | Read full messages from an archived chunk via HTTP |
-| `src/memory/db.ts` | SQLite database (better-sqlite3 + sqlite-vec), schema, CRUD, JSONL migration |
+| `src/memory/db/core.ts` | SQLite database lifecycle: `initMemoryDb()`, `getDb()`, `closeDb()`, schema creation |
+| `src/memory/db/summaries.ts` | Summary CRUD: `insertSummary()`, `listSummaries()` |
+| `src/memory/db/memories.ts` | Persistent memory CRUD: `insertMemory()`, `deleteMemory()`, `getMemoryById()`, `listMemories()` |
+| `src/memory/db/thread-sessions.ts` | Thread-session map: `saveThreadSession()`, `getThreadSession()` |
+| `src/memory/db/migration.ts` | JSONL → SQLite migration logic |
 | `src/memory/embeddings.ts` | OpenAI text-embedding-3-small wrapper (embedText, embedBatch) |
 | `src/memory/persistent.ts` | Persistent memory CRUD (writeMemory, deleteMemory, getMemory, listMemories) |
 | `src/memory/search.ts` | Hybrid vector + FTS5 search across summaries and persistent memories |
@@ -156,7 +165,7 @@ MCP (Model Context Protocol) servers provide external tools, configured in `src/
 - Thread-based session mapping for conversation continuity across messages
 
 ### System Prompt
-- **`src/core/prompt.ts` is the single source of truth** for prompt composition (not `opencode-service.ts`)
+- **`src/core/prompt.ts` is the single source of truth** for prompt composition (not `core/opencode/`)
 - Base prompt in `config/SYSTEM_PROMPT.md` with `{{TOOLS}}` and `{{CHANNEL_CONTEXT}}` placeholders
 - Tool descriptions auto-generated from registry at runtime (never hardcoded)
 - Channel-specific prompts defined in `CHANNEL_PROMPTS` record in `prompt.ts` (whatsapp, webchat, scheduler)
@@ -281,11 +290,14 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full system design with diagrams.
 fern/                              # pnpm monorepo
 ├── src/
 │   ├── index.ts                   # Entry point (alerts, watchdog init)
-│   ├── core/                      # Agent loop, GitHub service, workspace, alerts, watchdog
+│   ├── core/                      # Agent loop, workspace, alerts, watchdog
+│   │   ├── opencode/              # OpenCode server/client, sessions, event streaming
+│   │   └── github/                # GitHub App auth, PR operations
 │   ├── config/                    # Configuration loading
 │   ├── server/                    # HTTP server, dashboard API, internal APIs, auth middleware
 │   ├── channels/                  # Channel adapters (WhatsApp via Twilio)
 │   ├── memory/                    # Async archival, persistent memory, hybrid search
+│   │   └── db/                    # SQLite database (schema, summaries, memories, thread-sessions)
 │   ├── scheduler/                 # Job scheduling (types, config, db, loop)
 │   └── .opencode/                 # OpenCode configuration
 │       ├── opencode.jsonc         # MCP servers, permissions
@@ -323,3 +335,4 @@ After any significant change, check whether these need updating:
 - Twilio WhatsApp has a 1600-char per-message limit (not WhatsApp's native 65536). Messages are auto-chunked.
 - Twilio webhooks require a public URL. Use ngrok for local dev: `ngrok http 4000`
 - Twilio SDK works with ESM via default import: `import twilio from "twilio"`
+- All imports use `@/` path aliases (e.g., `import { getDb } from "@/memory/db/core.js"`). `tsc-alias` rewrites these to relative paths at build time. Vitest resolves them via the `resolve.alias` config in `vitest.config.ts`.

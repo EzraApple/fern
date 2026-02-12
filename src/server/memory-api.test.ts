@@ -1,24 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock memory dependencies before importing
-vi.mock("../memory/persistent.js", () => ({
+vi.mock("@/memory/persistent.js", () => ({
   writeMemory: vi.fn(),
   deleteMemory: vi.fn(),
 }));
 
-vi.mock("../memory/search.js", () => ({
+vi.mock("@/memory/search.js", () => ({
   searchMemory: vi.fn(),
 }));
 
-vi.mock("../memory/storage.js", () => ({
+vi.mock("@/memory/storage.js", () => ({
   readChunk: vi.fn(),
 }));
 
+import { deleteMemory, writeMemory } from "@/memory/persistent.js";
+import { searchMemory } from "@/memory/search.js";
+import { readChunk } from "@/memory/storage.js";
+import { createMemoryApi } from "@/server/memory-api.js";
 import { Hono } from "hono";
-import { deleteMemory, writeMemory } from "../memory/persistent.js";
-import { searchMemory } from "../memory/search.js";
-import { readChunk } from "../memory/storage.js";
-import { createMemoryApi } from "./memory-api.js";
 
 const mockWriteMemory = vi.mocked(writeMemory);
 const mockDeleteMemory = vi.mocked(deleteMemory);

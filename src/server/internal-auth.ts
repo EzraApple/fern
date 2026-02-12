@@ -1,5 +1,5 @@
+import { getApiSecret } from "@/config/config.js";
 import type { MiddlewareHandler } from "hono";
-import { getApiSecret } from "../config/config.js";
 
 /**
  * Hono middleware that enforces shared-secret auth on internal API routes.

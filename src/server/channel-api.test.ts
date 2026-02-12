@@ -1,7 +1,7 @@
+import type { ChannelAdapter, ChannelCapabilities, OutboundMessage } from "@/channels/types.js";
+import { createChannelApi } from "@/server/channel-api.js";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChannelAdapter, ChannelCapabilities, OutboundMessage } from "../channels/types.js";
-import { createChannelApi } from "./channel-api.js";
 
 function createMockAdapter(name: string): ChannelAdapter {
   return {

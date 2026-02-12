@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock config
-vi.mock("./config.js", () => ({
+vi.mock("@/memory/config.js", () => ({
   getMemoryConfig: () => ({
     embeddingModel: "text-embedding-3-small",
   }),
 }));
 
 // Mock the config/config.js module for the API key
-vi.mock("../config/config.js", () => ({
+vi.mock("@/config/config.js", () => ({
   getOpenAIApiKey: () => "test-api-key",
 }));
 
@@ -16,7 +16,7 @@ vi.mock("../config/config.js", () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-import { embedBatch, embedText } from "./embeddings.js";
+import { embedBatch, embedText } from "@/memory/embeddings.js";
 
 describe("embedBatch", () => {
   beforeEach(() => {

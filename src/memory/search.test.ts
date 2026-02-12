@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 let testDbDir: string;
 let testDbPath: string;
 
-vi.mock("./config.js", () => ({
+vi.mock("@/memory/config.js", () => ({
   getMemoryConfig: () => ({
     enabled: true,
     storagePath: testDbDir,
@@ -22,12 +22,12 @@ vi.mock("./config.js", () => ({
 }));
 
 // Mock embeddings to avoid actual API calls
-vi.mock("./embeddings.js", () => ({
+vi.mock("@/memory/embeddings.js", () => ({
   embedText: vi.fn().mockResolvedValue([]),
   embedBatch: vi.fn().mockResolvedValue([]),
 }));
 
-import type { PersistentMemory, SummaryIndexEntry } from "./types.js";
+import type { PersistentMemory, SummaryIndexEntry } from "@/memory/types.js";
 
 describe("search", () => {
   beforeEach(async () => {
@@ -40,12 +40,12 @@ describe("search", () => {
     fs.mkdirSync(testDbDir, { recursive: true });
 
     // Initialize DB
-    const dbMod = await import("./db.js");
+    const dbMod = await import("./db/index.js");
     await dbMod.initMemoryDb();
   });
 
   afterEach(async () => {
-    const dbMod = await import("./db.js");
+    const dbMod = await import("./db/index.js");
     dbMod.closeDb();
     fs.rmSync(testDbDir, { recursive: true, force: true });
   });
@@ -64,7 +64,7 @@ describe("search", () => {
     });
 
     it("finds summaries via FTS5 keyword search", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       const entry: SummaryIndexEntry = {
         chunkId: "chunk_001",
         threadId: "thread-1",
@@ -85,7 +85,7 @@ describe("search", () => {
     });
 
     it("finds persistent memories via FTS5 keyword search", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       const memory: PersistentMemory = {
         id: "mem_001",
         type: "fact",
@@ -106,7 +106,7 @@ describe("search", () => {
     });
 
     it("returns results with relevance scores", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       dbMod.insertMemory(
         {
           id: "mem_001",
@@ -127,7 +127,7 @@ describe("search", () => {
     });
 
     it("respects limit parameter", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       for (let i = 0; i < 10; i++) {
         dbMod.insertMemory(
           {
@@ -148,7 +148,7 @@ describe("search", () => {
     });
 
     it("filters summaries by threadId", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       dbMod.insertSummary(
         {
           chunkId: "chunk_a",
@@ -184,7 +184,7 @@ describe("search", () => {
     });
 
     it("sorts results by descending relevance score", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       dbMod.insertMemory(
         {
           id: "mem_a",
@@ -218,7 +218,7 @@ describe("search", () => {
     });
 
     it("filters out results below minScore", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       dbMod.insertMemory(
         {
           id: "mem_001",
@@ -238,7 +238,7 @@ describe("search", () => {
     });
 
     it("returns timeRange for archive results", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       dbMod.insertSummary(
         {
           chunkId: "chunk_time",
@@ -260,7 +260,7 @@ describe("search", () => {
     });
 
     it("returns tags for memory results", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       dbMod.insertMemory(
         {
           id: "mem_tagged",
@@ -289,7 +289,7 @@ describe("search", () => {
     });
 
     it("returns default limit of 5 when no limit specified", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       for (let i = 0; i < 10; i++) {
         dbMod.insertMemory(
           {
@@ -310,7 +310,7 @@ describe("search", () => {
     });
 
     it("returns default minScore of 0.05", async () => {
-      const dbMod = await import("./db.js");
+      const dbMod = await import("./db/index.js");
       dbMod.insertMemory(
         {
           id: "mem_score",

@@ -1,6 +1,6 @@
+import { createPullRequest } from "@/core/github/pr.js";
+import { cleanupWorkspace, getWorkspaceById } from "@/core/workspace.js";
 import { tool } from "@opencode-ai/plugin";
-import { createPullRequest } from "../../core/github-service.js";
-import { cleanupWorkspace, getWorkspaceById } from "../../core/workspace.js";
 
 export const github_pr = tool({
   description:

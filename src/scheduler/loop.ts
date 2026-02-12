@@ -1,21 +1,21 @@
-import { CronExpressionParser } from "cron-parser";
-import PQueue from "p-queue";
-import { runAgentLoop } from "../core/agent.js";
-import { sendAlert } from "../core/alerts.js";
+import { runAgentLoop } from "@/core/agent.js";
+import { sendAlert } from "@/core/alerts.js";
 import {
   recordSchedulerFailure,
   resetSchedulerFailures,
   triggerWatchdogShutdown,
-} from "../core/watchdog.js";
-import { getSchedulerConfig } from "./config.js";
+} from "@/core/watchdog.js";
+import { getSchedulerConfig } from "@/scheduler/config.js";
 import {
   advanceRecurringJob,
   claimJob,
   getDueJobs,
   recoverStaleJobs,
   updateJobStatus,
-} from "./db.js";
-import type { ScheduledJob } from "./types.js";
+} from "@/scheduler/db.js";
+import type { ScheduledJob } from "@/scheduler/types.js";
+import { CronExpressionParser } from "cron-parser";
+import PQueue from "p-queue";
 
 let timer: ReturnType<typeof setInterval> | null = null;
 let executionQueue: PQueue | null = null;

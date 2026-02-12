@@ -5,20 +5,20 @@
  */
 
 import { execSync } from "node:child_process";
+import { WhatsAppAdapter } from "@/channels/index.js";
+import type { ChannelAdapter } from "@/channels/types.js";
+import { getTwilioCredentials, loadConfig } from "@/config/index.js";
+import { runAgentLoop } from "@/core/agent.js";
+import { initAlerts, sendAlert } from "@/core/alerts.js";
+import { clearDeployState, readDeployState, writeDeployState } from "@/core/deploy-state.js";
+import { loadBasePrompt } from "@/core/index.js";
+import { ensureOpenCode, cleanup as opencodeCleanup } from "@/core/opencode/server.js";
+import { initWatchdog, recordOpenCodeFailure, resetOpenCodeFailures } from "@/core/watchdog.js";
+import * as workspace from "@/core/workspace.js";
+import { closeDb, initMemoryDb } from "@/memory/index.js";
+import { initScheduler, stopScheduler } from "@/scheduler/index.js";
+import { createServer } from "@/server/index.js";
 import { serve } from "@hono/node-server";
-import { WhatsAppAdapter } from "./channels/index.js";
-import type { ChannelAdapter } from "./channels/types.js";
-import { getTwilioCredentials, loadConfig } from "./config/index.js";
-import { runAgentLoop } from "./core/agent.js";
-import { initAlerts, sendAlert } from "./core/alerts.js";
-import { clearDeployState, readDeployState, writeDeployState } from "./core/deploy-state.js";
-import { loadBasePrompt } from "./core/index.js";
-import * as opencodeService from "./core/opencode-service.js";
-import { initWatchdog, recordOpenCodeFailure, resetOpenCodeFailures } from "./core/watchdog.js";
-import * as workspace from "./core/workspace.js";
-import { closeDb, initMemoryDb } from "./memory/index.js";
-import { initScheduler, stopScheduler } from "./scheduler/index.js";
-import { createServer } from "./server/index.js";
 
 export const VERSION = "0.2.0";
 
@@ -60,7 +60,7 @@ async function main() {
     console.info("  ✓ Workspaces cleaned");
 
     console.info("  Stopping OpenCode server...");
-    await opencodeService.cleanup();
+    await opencodeCleanup();
     console.info("  ✓ OpenCode server stopped");
 
     // Kill any orphaned opencode child processes
@@ -88,7 +88,7 @@ async function main() {
 
   // Initialize OpenCode server
   console.info("Initializing OpenCode server...");
-  const opencode = await opencodeService.ensureOpenCode();
+  const opencode = await ensureOpenCode();
   resetOpenCodeFailures();
   console.info(`✓ OpenCode server running at ${opencode.url}`);
 

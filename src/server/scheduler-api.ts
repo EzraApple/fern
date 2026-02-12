@@ -1,14 +1,8 @@
+import { generateJobId, getJobById, insertJob, listJobs, updateJobStatus } from "@/scheduler/db.js";
+import type { JobType, ScheduledJob } from "@/scheduler/types.js";
 import { CronExpressionParser } from "cron-parser";
 import { Hono } from "hono";
 import { z } from "zod";
-import {
-  generateJobId,
-  getJobById,
-  insertJob,
-  listJobs,
-  updateJobStatus,
-} from "../scheduler/db.js";
-import type { JobType, ScheduledJob } from "../scheduler/types.js";
 
 const CreateJobSchema = z
   .object({

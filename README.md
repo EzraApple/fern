@@ -91,11 +91,14 @@ curl -X POST http://localhost:4000/chat \
 fern/                          # pnpm monorepo
 ├── src/
 │   ├── index.ts               # Entry point
-│   ├── core/                  # Agent loop, GitHub service, workspace management
+│   ├── core/                  # Agent loop, workspace, alerts, watchdog
+│   │   ├── opencode/          # OpenCode server/client, sessions, event streaming
+│   │   └── github/            # GitHub App auth, PR operations
 │   ├── config/                # Configuration loading
 │   ├── server/                # HTTP server (Hono), dashboard API, internal APIs
 │   ├── channels/              # Channel adapters (WhatsApp via Twilio)
 │   ├── memory/                # Async archival, persistent memory, hybrid search
+│   │   └── db/                # SQLite database (schema, summaries, memories)
 │   ├── scheduler/             # Job scheduling (types, config, db, loop)
 │   └── .opencode/             # OpenCode config, tools, and skills
 ├── apps/

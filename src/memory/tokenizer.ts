@@ -1,4 +1,4 @@
-import type { OpenCodeMessage } from "./types.js";
+import type { OpenCodeMessage } from "@/memory/types.js";
 
 /**
  * Estimate token count for a single message.

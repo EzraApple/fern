@@ -1,6 +1,6 @@
-import { formatForChannel } from "../format.js";
-import type { ChannelAdapter, ChannelCapabilities, OutboundMessage } from "../types.js";
-import { TwilioGateway, type TwilioGatewayConfig } from "./twilio-gateway.js";
+import { formatForChannel } from "@/channels/format.js";
+import type { ChannelAdapter, ChannelCapabilities, OutboundMessage } from "@/channels/types.js";
+import { TwilioGateway, type TwilioGatewayConfig } from "@/channels/whatsapp/twilio-gateway.js";
 
 export interface WhatsAppAdapterConfig extends TwilioGatewayConfig {
   fromNumber: string;

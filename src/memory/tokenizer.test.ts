@@ -1,6 +1,6 @@
+import { estimateMessageTokens, estimateMessagesTokens } from "@/memory/tokenizer.js";
+import type { OpenCodeMessage } from "@/memory/types.js";
 import { describe, expect, it } from "vitest";
-import { estimateMessageTokens, estimateMessagesTokens } from "./tokenizer.js";
-import type { OpenCodeMessage } from "./types.js";
 
 function makeMessage(overrides: Partial<OpenCodeMessage> = {}): OpenCodeMessage {
   return {

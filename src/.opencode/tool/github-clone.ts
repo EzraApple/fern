@@ -1,5 +1,5 @@
+import { createWorkspace } from "@/core/workspace.js";
 import { tool } from "@opencode-ai/plugin";
-import { createWorkspace } from "../../core/workspace.js";
 
 export const github_clone = tool({
   description:

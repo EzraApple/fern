@@ -1,5 +1,5 @@
-import { TwilioGateway } from "../channels/whatsapp/twilio-gateway.js";
-import { getTwilioCredentials } from "../config/config.js";
+import { TwilioGateway } from "@/channels/whatsapp/twilio-gateway.js";
+import { getTwilioCredentials } from "@/config/config.js";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;

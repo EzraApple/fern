@@ -133,7 +133,7 @@ Remote MCPs connect to HTTP endpoints. Supports OAuth for authenticated services
 
 MCP tools are auto-prefixed with the server name:
 
-- Server `"fetch"` with tool `fetch` → agent sees `fetch_fetch`
+- Server `"web"` with tool `fetch` → agent sees `web_fetch`
 - Server `"context7"` with tool `resolve` → agent sees `context7_resolve`
 
 Choose short, clear server names since they become part of the tool name.

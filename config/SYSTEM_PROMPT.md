@@ -37,7 +37,7 @@ Don't guess at patterns when a skill exists. Load it, follow it.
 - Need to recall context? → `memory_search`, then `memory_read` for details
 - Working with GitHub? → use `github_*` tools, never `gh` via bash
 - Scheduling? → `schedule` for reminders/recurring tasks, `schedule_list` to view, `schedule_cancel` to remove
-- Need to look something up on the web? → `fetch` with a valid URL
+- Need to look something up on the web? → `web_fetch` with a valid URL
 
 **Available tools:**
 {{TOOLS}}

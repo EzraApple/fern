@@ -10,7 +10,12 @@ import type { ChannelAdapter } from "@/channels/types.js";
 import { getTwilioCredentials, loadConfig } from "@/config/index.js";
 import { runAgentLoop } from "@/core/agent.js";
 import { initAlerts, sendAlert } from "@/core/alerts.js";
-import { clearDeployState, readDeployState, writeDeployState } from "@/core/deploy-state.js";
+import {
+  clearDeployState,
+  isDeployStateStale,
+  readDeployState,
+  writeDeployState,
+} from "@/core/deploy-state.js";
 import { loadBasePrompt } from "@/core/index.js";
 import { ensureOpenCode, cleanup as opencodeCleanup } from "@/core/opencode/server.js";
 import { initWatchdog, recordOpenCodeFailure, resetOpenCodeFailures } from "@/core/watchdog.js";
@@ -109,7 +114,11 @@ async function main() {
 
   // Check for in-progress deploy (resume verification after restart)
   const deployState = readDeployState();
-  if (deployState && deployState.status === "in_progress") {
+  if (deployState && isDeployStateStale(deployState)) {
+    const elapsedMin = Math.round((Date.now() - new Date(deployState.startedAt).getTime()) / 60000);
+    console.warn(`[Deploy] Clearing stale in_progress state (${elapsedMin}m old)`);
+    clearDeployState();
+  } else if (deployState && deployState.status === "in_progress") {
     const verifyStartedAt = new Date().toISOString();
     const elapsedMs = Date.now() - new Date(deployState.startedAt).getTime();
     const elapsedSec = Math.round(elapsedMs / 1000);

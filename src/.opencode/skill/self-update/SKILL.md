@@ -20,7 +20,7 @@ You are reviewing commits that were pushed to main and deploying them to product
    - Low risk: docs, tests, config, skills
 
 3. **Notify the user**
-   - Use `send_message` with `channelName: "whatsapp"` and the user's phone number
+   - Use `send_message` with `channel: "whatsapp"`, `to: "<user's phone number>"`, and `content: "<your message>"`
    - Keep it brief: "Deploying N commits to main: <1-line summary>. Back in ~60s."
    - The user's phone number is in your channel context; if not, check your memories
 

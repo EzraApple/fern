@@ -48,3 +48,12 @@ export function clearDeployState(): void {
     fs.unlinkSync(filePath);
   }
 }
+
+const STALE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+/** Check if an in_progress deploy state is stale (older than 30 minutes) */
+export function isDeployStateStale(state: DeployState): boolean {
+  if (state.status !== "in_progress") return false;
+  const elapsed = Date.now() - new Date(state.startedAt).getTime();
+  return elapsed > STALE_TIMEOUT_MS;
+}

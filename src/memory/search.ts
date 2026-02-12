@@ -6,6 +6,8 @@ type SqlParam = null | number | bigint | string | Buffer;
 
 const VECTOR_WEIGHT = 0.7;
 const TEXT_WEIGHT = 0.3;
+const RECENCY_WEIGHT = 0.15; // blended in: final = (1 - RECENCY_WEIGHT) * relevance + RECENCY_WEIGHT * recency
+const RECENCY_HALFLIFE_DAYS = 30; // score halves every 30 days
 
 // ── FTS5 query building (from openclaw hybrid.ts) ──────────────────────────
 
@@ -26,6 +28,13 @@ function bm25RankToScore(rank: number): number {
   return 1 / (1 + normalized);
 }
 
+/** Exponential decay: 1.0 for now, 0.5 after halflife days, 0.25 after 2x halflife, etc. */
+function recencyScore(timestampMs: number): number {
+  const ageMs = Math.max(0, Date.now() - timestampMs);
+  const ageDays = ageMs / (1000 * 60 * 60 * 24);
+  return 0.5 ** (ageDays / RECENCY_HALFLIFE_DAYS);
+}
+
 // ── Intermediate types ─────────────────────────────────────────────────────
 
 interface ScoredEntry {
@@ -42,6 +51,8 @@ interface ScoredEntry {
   // Memory fields
   memoryType?: "fact" | "preference" | "learning";
   tags?: string[];
+  // Timestamp for recency boost (epoch ms)
+  timestamp?: number;
 }
 
 // ── Main search ────────────────────────────────────────────────────────────
@@ -85,7 +96,9 @@ export async function searchMemory(
   // Merge scores and sort
   const results: UnifiedSearchResult[] = [];
   for (const entry of byId.values()) {
-    const score = VECTOR_WEIGHT * entry.vectorScore + TEXT_WEIGHT * entry.textScore;
+    const relevance = VECTOR_WEIGHT * entry.vectorScore + TEXT_WEIGHT * entry.textScore;
+    const recency = entry.timestamp != null ? recencyScore(entry.timestamp) : 0.5;
+    const score = (1 - RECENCY_WEIGHT) * relevance + RECENCY_WEIGHT * recency;
     if (score < minScore) continue;
 
     results.push({
@@ -157,6 +170,7 @@ function vectorSearchSummaries(
         tokenCount: row.token_count,
         timeStart: row.time_start,
         timeEnd: row.time_end,
+        timestamp: row.time_end,
       });
     }
   }
@@ -170,7 +184,7 @@ function vectorSearchMemories(
   const d = getDb();
   const rows = d
     .prepare(
-      `SELECT m.id, m.content, m.type, m.tags,
+      `SELECT m.id, m.content, m.type, m.tags, m.created_at,
               vec_distance_cosine(v.embedding, ?) AS dist
          FROM memories_vec v
          JOIN memories m ON m.id = v.id
@@ -181,6 +195,7 @@ function vectorSearchMemories(
     content: string;
     type: string;
     tags: string;
+    created_at: string;
     dist: number;
   }>;
 
@@ -198,6 +213,7 @@ function vectorSearchMemories(
         textScore: 0,
         memoryType: row.type as "fact" | "preference" | "learning",
         tags: JSON.parse(row.tags) as string[],
+        timestamp: new Date(row.created_at).getTime(),
       });
     }
   }
@@ -255,6 +271,7 @@ function ftsSearchSummaries(
         tokenCount: full?.token_count,
         timeStart: full?.time_start,
         timeEnd: full?.time_end,
+        timestamp: full?.time_end,
       });
     }
   }
@@ -282,9 +299,9 @@ function ftsSearchMemories(ftsQuery: string, limit: number, byId: Map<string, Sc
     if (existing) {
       existing.textScore = Math.max(existing.textScore, score);
     } else {
-      // Get tags from main table
-      const full = d.prepare("SELECT tags FROM memories WHERE id = ?").get(row.id) as
-        | { tags: string }
+      // Get tags and timestamp from main table
+      const full = d.prepare("SELECT tags, created_at FROM memories WHERE id = ?").get(row.id) as
+        | { tags: string; created_at: string }
         | undefined;
 
       byId.set(row.id, {
@@ -295,6 +312,7 @@ function ftsSearchMemories(ftsQuery: string, limit: number, byId: Map<string, Sc
         textScore: score,
         memoryType: row.type as "fact" | "preference" | "learning",
         tags: full ? (JSON.parse(full.tags) as string[]) : [],
+        timestamp: full ? new Date(full.created_at).getTime() : undefined,
       });
     }
   }

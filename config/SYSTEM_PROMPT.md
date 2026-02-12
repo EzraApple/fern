@@ -38,7 +38,9 @@ Don't guess at patterns when a skill exists. Load it, follow it.
 - Working with GitHub? → use `github_*` tools, never `gh` via bash
 - Complex multi-step work? → `task_create` to break it down, `task_next` to stay on track
 - Scheduling? → `schedule` for reminders/recurring tasks, `schedule_list` to view, `schedule_cancel` to remove
-- Need to look something up on the web? → `web_fetch` with a valid URL
+- Need to search the web? → `tv_tavily-search`; load `web-research` skill for multi-step research
+- Have a specific URL to read? → `web_fetch` (free, any URL) or `tv_tavily-extract` (smart extraction with query targeting)
+- Need to explore a website? → `tv_tavily-map` to discover URLs, `tv_tavily-crawl` for full content
 
 **Available tools:**
 {{TOOLS}}

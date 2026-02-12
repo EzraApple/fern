@@ -19,10 +19,10 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - **Phase 4: Observability** - Next.js 15 dashboard app (`apps/dashboard/`) with views for sessions, memory, tools, GitHub PRs, and costs. Dashboard API at `/api/*` on the Fern server.
 - **Phase 5: Scheduling** - SQLite job queue in existing memory DB. `schedule` tool creates one-shot or recurring (cron) jobs. Each job is a prompt that fires a fresh agent session — agent has full autonomy to decide what tools to use and what channels to message. `send_message` tool enables proactive outbound messaging to any channel. Background loop polls every 60s.
 - **Hardening**: Internal API auth (shared-secret middleware), Twilio webhook signature verification, watchdog with WhatsApp failure alerts, pm2 process supervision.
-- **Skills**: 5 skills (`adding-skills`, `adding-mcps`, `adding-tools`, `self-update`, `verify-update`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
+- **Skills**: 6 skills (`adding-skills`, `adding-mcps`, `adding-tools`, `self-update`, `verify-update`, `web-research`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
 - **Auto-Update**: GitHub webhook detects pushes to main → agent reviews changes, notifies user, triggers update → updater script (separate pm2 process) pulls/builds/restarts → agent resumes same session for verification → rollback if broken. Thread-session map persisted in SQLite for session continuity across restarts.
 - **Task Tracking**: In-session task/todo system. 4 tools (`task_create`, `task_update`, `task_list`, `task_next`) for breaking complex work into tracked steps. Thread-scoped, flat ordered list, 7-day cleanup for done/cancelled tasks.
-- **MCP**: Fetch MCP (`@modelcontextprotocol/server-fetch`) for web content retrieval. Configured in `src/.opencode/opencode.jsonc`.
+- **MCP**: Fetch MCP (`@modelcontextprotocol/server-fetch`) for web content retrieval + Tavily MCP (`tavily-mcp`) for AI-optimized web search, extraction, mapping, and crawling. Configured in `src/.opencode/opencode.jsonc`.
 
 ## Quick Commands
 
@@ -151,14 +151,14 @@ Skills are on-demand Markdown instruction files in `src/.opencode/skill/<name>/S
 Key points:
 - YAML frontmatter with `name` (must match directory) and `description` (the trigger — only thing LLM sees before loading)
 - Auto-accepted (`"permission": { "skill": "allow" }` in `opencode.jsonc`) for unattended operation
-- Current skills: `adding-skills`, `adding-mcps`, `adding-tools`
+- Current skills: `adding-skills`, `adding-mcps`, `adding-tools`, `web-research`
 
 ### MCP Servers
 MCP (Model Context Protocol) servers provide external tools, configured in `src/.opencode/opencode.jsonc`:
 - **Local MCPs**: Run as child processes (stdio transport). Config: `{ "type": "local", "command": [...] }`
 - **Remote MCPs**: Connect to HTTP endpoints. Config: `{ "type": "remote", "url": "..." }`
 - Tools auto-prefixed with server name: server `"web"` → tool `web_fetch`
-- Current MCPs: `web` (`@modelcontextprotocol/server-fetch` — web content retrieval)
+- Current MCPs: `web` (`@modelcontextprotocol/server-fetch` — free general-purpose URL fetching), `tv` (`tavily-mcp` — AI-optimized web search, extraction, mapping, and crawling)
 
 ### Session Storage
 - OpenCode manages sessions in `~/.local/share/opencode/storage/`
@@ -322,7 +322,7 @@ fern/                              # pnpm monorepo
 │   └── .opencode/                 # OpenCode configuration
 │       ├── opencode.jsonc         # MCP servers, permissions
 │       ├── tool/                  # 16 tools (auto-discovered by OpenCode)
-│       └── skill/                 # On-demand skills (adding-skills, adding-mcps, adding-tools, self-update, verify-update)
+│       └── skill/                 # On-demand skills (adding-skills, adding-mcps, adding-tools, self-update, verify-update, web-research)
 ├── apps/
 │   └── dashboard/                 # Next.js 15 observability dashboard
 ├── config/                        # Config files + system prompt
@@ -356,3 +356,4 @@ After any significant change, check whether these need updating:
 - Twilio webhooks require a public URL. Use ngrok for local dev: `ngrok http 4000`
 - Twilio SDK works with ESM via default import: `import twilio from "twilio"`
 - All imports use `@/` path aliases (e.g., `import { getDb } from "@/memory/db/core.js"`). `tsc-alias` rewrites these to relative paths at build time. Vitest resolves them via the `resolve.alias` config in `vitest.config.ts`.
+- Tavily MCP free tier: 1,000 credits/month. `web_fetch` is free and unlimited for simple URL reads. Prefer `web_fetch` when you already have the URL.

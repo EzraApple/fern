@@ -1,6 +1,6 @@
+import { chunkMessage, formatForChannel, stripMarkdown } from "@/channels/format.js";
+import type { ChannelCapabilities } from "@/channels/types.js";
 import { describe, expect, it } from "vitest";
-import { chunkMessage, formatForChannel, stripMarkdown } from "./format.js";
-import type { ChannelCapabilities } from "./types.js";
 
 describe("stripMarkdown", () => {
   it("removes bold markers", () => {

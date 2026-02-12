@@ -1,5 +1,5 @@
-import { getOpenAIApiKey } from "../config/config.js";
-import { getMemoryConfig } from "./config.js";
+import { getOpenAIApiKey } from "@/config/config.js";
+import { getMemoryConfig } from "@/memory/config.js";
 
 const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
 

@@ -1,1 +1,1 @@
-export { WhatsAppAdapter, type WhatsAppAdapterConfig } from "./adapter.js";
+export { WhatsAppAdapter, type WhatsAppAdapterConfig } from "@/channels/whatsapp/adapter.js";

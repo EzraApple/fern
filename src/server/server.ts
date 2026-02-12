@@ -1,16 +1,16 @@
+import type { ChannelAdapter } from "@/channels/types.js";
+import type { WhatsAppAdapter } from "@/channels/whatsapp/index.js";
+import { runAgentLoop } from "@/core/index.js";
+import { createChannelApi } from "@/server/channel-api.js";
+import { createDashboardApi } from "@/server/dashboard-api.js";
+import { createGitHubWebhookRoutes } from "@/server/github-webhook.js";
+import { internalAuth } from "@/server/internal-auth.js";
+import { createMemoryApi } from "@/server/memory-api.js";
+import { createSchedulerApi } from "@/server/scheduler-api.js";
+import { createWhatsAppWebhookRoutes } from "@/server/webhooks.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import type { ChannelAdapter } from "../channels/types.js";
-import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
-import { runAgentLoop } from "../core/index.js";
-import { createChannelApi } from "./channel-api.js";
-import { createDashboardApi } from "./dashboard-api.js";
-import { createGitHubWebhookRoutes } from "./github-webhook.js";
-import { internalAuth } from "./internal-auth.js";
-import { createMemoryApi } from "./memory-api.js";
-import { createSchedulerApi } from "./scheduler-api.js";
-import { createWhatsAppWebhookRoutes } from "./webhooks.js";
 
 const ChatInputSchema = z.object({
   sessionId: z.string().optional(),

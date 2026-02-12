@@ -1,13 +1,13 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { ArchiveChunk, ArchiveWatermark } from "@/memory/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ArchiveChunk, ArchiveWatermark } from "./types.js";
 
 // Mock config to use a temp directory
 const testStoragePath = path.join(os.tmpdir(), `fern-test-storage-${Date.now()}`);
 
-vi.mock("./config.js", () => ({
+vi.mock("@/memory/config.js", () => ({
   getMemoryConfig: () => ({
     enabled: true,
     storagePath: testStoragePath,
@@ -27,7 +27,7 @@ import {
   readWatermark,
   writeChunk,
   writeWatermark,
-} from "./storage.js";
+} from "@/memory/storage.js";
 
 describe("storage", () => {
   beforeEach(() => {

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSendMessage = vi.fn();
 
-vi.mock("../channels/whatsapp/twilio-gateway.js", () => {
+vi.mock("@/channels/whatsapp/twilio-gateway.js", () => {
   return {
     TwilioGateway: class MockTwilioGateway {
       sendMessage = mockSendMessage;
@@ -10,12 +10,12 @@ vi.mock("../channels/whatsapp/twilio-gateway.js", () => {
   };
 });
 
-vi.mock("../config/config.js", () => ({
+vi.mock("@/config/config.js", () => ({
   getTwilioCredentials: vi.fn(),
 }));
 
-import { getTwilioCredentials } from "../config/config.js";
-import { initAlerts, resetAlerts, sendAlert } from "./alerts.js";
+import { getTwilioCredentials } from "@/config/config.js";
+import { initAlerts, resetAlerts, sendAlert } from "@/core/alerts.js";
 
 const mockGetTwilioCredentials = vi.mocked(getTwilioCredentials);
 

@@ -1,6 +1,6 @@
+import { commitChanges } from "@/core/workspace-git.js";
+import { getWorkspaceById } from "@/core/workspace.js";
 import { tool } from "@opencode-ai/plugin";
-import { commitChanges } from "../../core/workspace-git.js";
-import { getWorkspaceById } from "../../core/workspace.js";
 
 export const github_commit = tool({
   description:

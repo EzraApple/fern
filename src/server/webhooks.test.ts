@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the agent loop
-vi.mock("../core/index.js", () => ({
+vi.mock("@/core/index.js", () => ({
   runAgentLoop: vi.fn(),
 }));
 
 // Mock the config
-vi.mock("../config/config.js", () => ({
+vi.mock("@/config/config.js", () => ({
   getWebhookBaseUrl: vi.fn(),
 }));
 
@@ -32,11 +32,11 @@ const mockAdapter = {
   validateWebhook: vi.fn(),
 };
 
+import type { WhatsAppAdapter } from "@/channels/whatsapp/index.js";
+import { getWebhookBaseUrl } from "@/config/config.js";
+import { runAgentLoop } from "@/core/index.js";
+import { createWhatsAppWebhookRoutes } from "@/server/webhooks.js";
 import { Hono } from "hono";
-import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
-import { getWebhookBaseUrl } from "../config/config.js";
-import { runAgentLoop } from "../core/index.js";
-import { createWhatsAppWebhookRoutes } from "./webhooks.js";
 
 const mockRunAgentLoop = vi.mocked(runAgentLoop);
 const mockGetWebhookBaseUrl = vi.mocked(getWebhookBaseUrl);

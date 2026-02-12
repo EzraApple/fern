@@ -1,4 +1,4 @@
-import type { ChannelCapabilities } from "./types.js";
+import type { ChannelCapabilities } from "@/channels/types.js";
 
 /** Strip markdown formatting for plain-text channels */
 export function stripMarkdown(content: string): string {

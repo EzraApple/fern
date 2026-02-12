@@ -1,6 +1,6 @@
-import { getDb, isVectorReady, vectorToBlob } from "./db.js";
-import { embedText } from "./embeddings.js";
-import type { UnifiedSearchResult } from "./types.js";
+import { getDb, isVectorReady, vectorToBlob } from "@/memory/db/core.js";
+import { embedText } from "@/memory/embeddings.js";
+import type { UnifiedSearchResult } from "@/memory/types.js";
 
 type SqlParam = null | number | bigint | string | Buffer;
 

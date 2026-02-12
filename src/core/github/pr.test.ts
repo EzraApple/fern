@@ -12,20 +12,19 @@ vi.mock("@octokit/app", () => ({
     this.octokit = { request: mockAppOctokitRequest };
   }),
 }));
-vi.mock("../config/config.js", () => ({
+vi.mock("@/config/config.js", () => ({
   loadConfig: vi.fn(),
 }));
 
-import { App } from "@octokit/app";
-import { loadConfig } from "../config/config.js";
+import { loadConfig } from "@/config/config.js";
 import {
-  createPullRequest,
   getAuthenticatedCloneUrl,
   getInstallationToken,
   getOctokit,
-  getPRStatus,
   resetOctokit,
-} from "./github-service.js";
+} from "@/core/github/auth.js";
+import { createPullRequest, getPRStatus } from "@/core/github/pr.js";
+import { App } from "@octokit/app";
 
 const mockLoadConfig = loadConfig as unknown as ReturnType<typeof vi.fn>;
 const MockAppConstructor = App as unknown as ReturnType<typeof vi.fn>;

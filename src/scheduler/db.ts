@@ -1,6 +1,6 @@
+import { getDb } from "@/memory/db/core.js";
+import type { JobStatus, JobType, ScheduledJob } from "@/scheduler/types.js";
 import { ulid } from "ulid";
-import { getDb } from "../memory/db.js";
-import type { JobStatus, JobType, ScheduledJob } from "./types.js";
 
 // ── Row type from SQLite ──────────────────────────────────────────────────
 

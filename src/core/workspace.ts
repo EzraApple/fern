@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
+import { loadConfig } from "@/config/config.js";
+import { getAuthenticatedCloneUrl } from "@/core/github/auth.js";
+import type { WorkspaceInfo } from "@/types/workspace.js";
 import { ulid } from "ulid";
-import { loadConfig } from "../config/config.js";
-import type { WorkspaceInfo } from "../types/workspace.js";
-import { getAuthenticatedCloneUrl } from "./github-service.js";
 
 const execPromise = promisify(exec);
 

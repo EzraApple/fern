@@ -7,25 +7,25 @@ vi.mock("node:child_process", () => ({
 vi.mock("node:util", () => ({
   promisify: vi.fn((fn: unknown) => fn),
 }));
-vi.mock("./workspace.js", () => ({
+vi.mock("@/core/workspace.js", () => ({
   updateWorkspaceBranch: vi.fn(),
 }));
-vi.mock("./github-service.js", () => ({
+vi.mock("@/core/github/auth.js", () => ({
   getAuthenticatedCloneUrl: vi.fn(() =>
     Promise.resolve("https://x-access-token:mock-token@github.com/test/repo.git")
   ),
 }));
 
 import { execFile } from "node:child_process";
-import type { WorkspaceInfo } from "../types/workspace.js";
 import {
   commitChanges,
   createBranch,
   getCurrentBranch,
   hasUncommittedChanges,
   pushBranch,
-} from "./workspace-git.js";
-import { updateWorkspaceBranch } from "./workspace.js";
+} from "@/core/workspace-git.js";
+import { updateWorkspaceBranch } from "@/core/workspace.js";
+import type { WorkspaceInfo } from "@/types/workspace.js";
 
 const mockExecFile = execFile as unknown as ReturnType<typeof vi.fn>;
 

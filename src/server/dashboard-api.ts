@@ -1,15 +1,17 @@
-import { Hono } from "hono";
-import { z } from "zod";
-import { getPRStatus, listPRs } from "../core/github-service.js";
+import { getPRStatus, listPRs } from "@/core/github/pr.js";
 import {
   getSession,
   getSessionMessages,
   listSessions,
   listTools,
-} from "../core/opencode-service.js";
-import { getDb, listMemories, listSummaries } from "../memory/db.js";
-import { searchMemory } from "../memory/search.js";
-import { readChunk } from "../memory/storage.js";
+} from "@/core/opencode/queries.js";
+import { getDb } from "@/memory/db/core.js";
+import { listMemories } from "@/memory/db/memories.js";
+import { listSummaries } from "@/memory/db/summaries.js";
+import { searchMemory } from "@/memory/search.js";
+import { readChunk } from "@/memory/storage.js";
+import { Hono } from "hono";
+import { z } from "zod";
 
 const SearchSchema = z.object({
   query: z.string().min(1),

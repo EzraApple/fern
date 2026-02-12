@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import type { MemoryArchivalConfig } from "./types.js";
+import type { MemoryArchivalConfig } from "@/memory/types.js";
 
 const DEFAULT_STORAGE_PATH = path.join(os.homedir(), ".fern", "memory");
 

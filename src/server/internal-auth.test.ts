@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../config/config.js", () => ({
+vi.mock("@/config/config.js", () => ({
   getApiSecret: vi.fn(),
 }));
 
+import { getApiSecret } from "@/config/config.js";
+import { internalAuth } from "@/server/internal-auth.js";
 import { Hono } from "hono";
-import { getApiSecret } from "../config/config.js";
-import { internalAuth } from "./internal-auth.js";
 
 const mockGetApiSecret = vi.mocked(getApiSecret);
 

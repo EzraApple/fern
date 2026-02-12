@@ -1,8 +1,8 @@
+import { deleteMemory, writeMemory } from "@/memory/persistent.js";
+import { searchMemory } from "@/memory/search.js";
+import { readChunk } from "@/memory/storage.js";
 import { Hono } from "hono";
 import { z } from "zod";
-import { deleteMemory, writeMemory } from "../memory/persistent.js";
-import { searchMemory } from "../memory/search.js";
-import { readChunk } from "../memory/storage.js";
 
 const WriteSchema = z.object({
   type: z.enum(["fact", "preference", "learning"]),

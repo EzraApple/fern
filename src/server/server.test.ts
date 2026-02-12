@@ -1,25 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies before importing server
-vi.mock("../core/index.js", () => ({
+vi.mock("@/core/index.js", () => ({
   runAgentLoop: vi.fn(),
 }));
 
-vi.mock("../memory/persistent.js", () => ({
+vi.mock("@/memory/persistent.js", () => ({
   writeMemory: vi.fn(),
   deleteMemory: vi.fn(),
 }));
 
-vi.mock("../memory/search.js", () => ({
+vi.mock("@/memory/search.js", () => ({
   searchMemory: vi.fn(),
 }));
 
-vi.mock("../memory/storage.js", () => ({
+vi.mock("@/memory/storage.js", () => ({
   readChunk: vi.fn(),
 }));
 
-import { runAgentLoop } from "../core/index.js";
-import { createServer } from "./server.js";
+import { runAgentLoop } from "@/core/index.js";
+import { createServer } from "@/server/server.js";
 
 const mockRunAgentLoop = vi.mocked(runAgentLoop);
 

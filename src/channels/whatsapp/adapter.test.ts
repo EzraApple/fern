@@ -4,7 +4,7 @@ const mockSendMessage = vi.fn().mockResolvedValue({ sid: "SM_mock_sid" });
 const mockValidateRequest = vi.fn().mockReturnValue(true);
 
 // Mock twilio-gateway so we don't need real Twilio credentials
-vi.mock("./twilio-gateway.js", () => {
+vi.mock("@/channels/whatsapp/twilio-gateway.js", () => {
   return {
     TwilioGateway: class MockTwilioGateway {
       sendMessage = mockSendMessage;
@@ -13,7 +13,7 @@ vi.mock("./twilio-gateway.js", () => {
   };
 });
 
-import { WhatsAppAdapter } from "./adapter.js";
+import { WhatsAppAdapter } from "@/channels/whatsapp/adapter.js";
 
 describe("WhatsAppAdapter", () => {
   let adapter: WhatsAppAdapter;

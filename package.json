@@ -6,9 +6,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "dev": "tsc --watch",
-    "start": "tsc && node --env-file=.env dist/index.js",
+    "start": "tsc && tsc-alias && node --env-file=.env dist/index.js",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
@@ -63,6 +63,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "knip": "^5.0.0",
     "pm2": "^6.0.0",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.7.0",
     "vitest": "^4.0.18"
   }

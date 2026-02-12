@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { GitCommit, WorkspaceInfo } from "../types/workspace.js";
-import { getAuthenticatedCloneUrl } from "./github-service.js";
-import { updateWorkspaceBranch } from "./workspace.js";
+import { getAuthenticatedCloneUrl } from "@/core/github/auth.js";
+import { updateWorkspaceBranch } from "@/core/workspace.js";
+import type { GitCommit, WorkspaceInfo } from "@/types/workspace.js";
 
 const execFilePromise = promisify(execFile);
 

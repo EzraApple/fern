@@ -6,7 +6,7 @@ const mockDbDeleteMemory = vi.fn();
 const mockGetMemoryById = vi.fn();
 const mockDbListMemories = vi.fn();
 
-vi.mock("./db.js", () => ({
+vi.mock("@/memory/db/memories.js", () => ({
   insertMemory: (...args: unknown[]) => mockInsertMemory(...args),
   deleteMemory: (...args: unknown[]) => mockDbDeleteMemory(...args),
   getMemoryById: (...args: unknown[]) => mockGetMemoryById(...args),
@@ -15,7 +15,7 @@ vi.mock("./db.js", () => ({
 
 // Mock embeddings
 const mockEmbedText = vi.fn();
-vi.mock("./embeddings.js", () => ({
+vi.mock("@/memory/embeddings.js", () => ({
   embedText: (...args: unknown[]) => mockEmbedText(...args),
 }));
 
@@ -24,8 +24,8 @@ vi.mock("ulid", () => ({
   ulid: () => "01ABCDEF",
 }));
 
-import { deleteMemory, getMemory, listMemories, writeMemory } from "./persistent.js";
-import type { PersistentMemory } from "./types.js";
+import { deleteMemory, getMemory, listMemories, writeMemory } from "@/memory/persistent.js";
+import type { PersistentMemory } from "@/memory/types.js";
 
 describe("persistent", () => {
   beforeEach(() => {

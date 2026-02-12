@@ -1,12 +1,12 @@
-import { ulid } from "ulid";
 import {
   deleteMemory as dbDeleteMemory,
   listMemories as dbListMemories,
   getMemoryById,
   insertMemory,
-} from "./db.js";
-import { embedText } from "./embeddings.js";
-import type { PersistentMemory } from "./types.js";
+} from "@/memory/db/memories.js";
+import { embedText } from "@/memory/embeddings.js";
+import type { PersistentMemory } from "@/memory/types.js";
+import { ulid } from "ulid";
 
 /** Write a new persistent memory (embeds and stores in DB) */
 export async function writeMemory(params: {

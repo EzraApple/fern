@@ -1,8 +1,8 @@
-import { onTurnComplete } from "../memory/index.js";
-import * as opencodeService from "./opencode-service.js";
-import { AgentTimeoutError } from "./opencode-service.js";
-import { buildSystemPrompt } from "./prompt.js";
-import type { AgentInput, AgentResult, ToolCallRecord } from "./types.js";
+import { getLastResponse, listTools, subscribeToEvents } from "@/core/opencode/queries.js";
+import { AgentTimeoutError, getOrCreateSession, prompt } from "@/core/opencode/session.js";
+import { buildSystemPrompt } from "@/core/prompt.js";
+import type { AgentInput, AgentResult, ToolCallRecord } from "@/core/types.js";
+import { onTurnComplete } from "@/memory/index.js";
 
 /**
  * Run the agent loop using OpenCode SDK
@@ -10,7 +10,7 @@ import type { AgentInput, AgentResult, ToolCallRecord } from "./types.js";
  */
 export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
   // 1. Get or create OpenCode session (maps phone → threadId)
-  const { sessionId, shareUrl } = await opencodeService.getOrCreateSession({
+  const { sessionId, shareUrl } = await getOrCreateSession({
     threadId: input.sessionId, // e.g., "whatsapp_+1234567890"
     title: `${input.channelName}: ${input.message.slice(0, 30)}`,
   });
@@ -18,12 +18,12 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
   }
 
   // 2. Build system prompt with tool list and channel context
-  const tools = await opencodeService.listTools();
+  const tools = await listTools();
   const systemPrompt = buildSystemPrompt(tools, input.channelName, input.channelUserId);
 
   // 3. Subscribe to events for progress tracking
   const toolCalls: ToolCallRecord[] = [];
-  const unsubscribe = await opencodeService.subscribeToEvents(sessionId, (event) => {
+  const unsubscribe = await subscribeToEvents(sessionId, (event) => {
     if (event.type === "tool_start") {
     } else if (event.type === "tool_complete") {
       if (event.tool) {
@@ -40,13 +40,13 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
 
   try {
     // 4. Send prompt and wait for completion
-    await opencodeService.prompt(sessionId, input.message, {
+    await prompt(sessionId, input.message, {
       system: systemPrompt,
       agent: "fern",
     });
 
     // 5. Get response from OpenCode
-    const response = await opencodeService.getLastResponse(sessionId);
+    const response = await getLastResponse(sessionId);
 
     // 6. Fire archival observer (non-blocking)
     void onTurnComplete(input.sessionId, sessionId).catch((err) => {

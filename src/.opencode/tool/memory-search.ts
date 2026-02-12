@@ -1,5 +1,5 @@
+import type { UnifiedSearchResult } from "@/memory/types.js";
 import { tool } from "@opencode-ai/plugin";
-import type { UnifiedSearchResult } from "../../memory/types.js";
 
 function getFernUrl(): string {
   return process.env.FERN_API_URL || `http://127.0.0.1:${process.env.FERN_PORT || "4000"}`;

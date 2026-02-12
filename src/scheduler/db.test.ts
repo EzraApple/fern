@@ -1,13 +1,13 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { ScheduledJob } from "@/scheduler/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ScheduledJob } from "./types.js";
 
 let testDbDir: string;
 let testDbPath: string;
 
-vi.mock("../memory/config.js", () => ({
+vi.mock("@/memory/config.js", () => ({
   getMemoryConfig: () => ({
     enabled: true,
     storagePath: testDbDir,
@@ -21,7 +21,7 @@ vi.mock("../memory/config.js", () => ({
   }),
 }));
 
-vi.mock("../memory/embeddings.js", () => ({
+vi.mock("@/memory/embeddings.js", () => ({
   embedBatch: vi.fn().mockResolvedValue([]),
   embedText: vi.fn().mockResolvedValue([]),
 }));
@@ -53,7 +53,7 @@ describe("scheduler db", () => {
     fs.mkdirSync(testDbDir, { recursive: true });
 
     // Initialize the memory DB (which scheduler shares)
-    const dbMod = await import("../memory/db.js");
+    const dbMod = await import("@/memory/db/index.js");
     await dbMod.initMemoryDb();
 
     // Create scheduler schema
@@ -62,14 +62,14 @@ describe("scheduler db", () => {
   });
 
   afterEach(async () => {
-    const dbMod = await import("../memory/db.js");
+    const dbMod = await import("@/memory/db/index.js");
     dbMod.closeDb();
     fs.rmSync(testDbDir, { recursive: true, force: true });
   });
 
   describe("createSchedulerSchema", () => {
     it("creates the scheduled_jobs table", async () => {
-      const dbMod = await import("../memory/db.js");
+      const dbMod = await import("@/memory/db/index.js");
       const db = dbMod.getDb();
       const tables = db
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='scheduled_jobs'")

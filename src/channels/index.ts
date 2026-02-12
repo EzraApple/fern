@@ -4,9 +4,9 @@ export type {
   OutboundMessage,
   ChannelCapabilities,
   Attachment,
-} from "./types.js";
-export { formatForChannel, stripMarkdown, chunkMessage } from "./format.js";
+} from "@/channels/types.js";
+export { formatForChannel, stripMarkdown, chunkMessage } from "@/channels/format.js";
 export {
   WhatsAppAdapter,
   type WhatsAppAdapterConfig,
-} from "./whatsapp/index.js";
+} from "@/channels/whatsapp/index.js";

@@ -1,14 +1,14 @@
+import type { AgentResult } from "@/core/types.js";
+import type { ScheduledJob } from "@/scheduler/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentResult } from "../core/types.js";
-import type { ScheduledJob } from "./types.js";
 
 // Mock the agent loop
-vi.mock("../core/agent.js", () => ({
+vi.mock("@/core/agent.js", () => ({
   runAgentLoop: vi.fn(),
 }));
 
 // Mock DB functions
-vi.mock("./db.js", () => ({
+vi.mock("@/scheduler/db.js", () => ({
   getDueJobs: vi.fn(),
   updateJobStatus: vi.fn(),
   advanceRecurringJob: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("./db.js", () => ({
 }));
 
 // Mock config
-vi.mock("./config.js", () => ({
+vi.mock("@/scheduler/config.js", () => ({
   getSchedulerConfig: vi.fn().mockReturnValue({
     enabled: true,
     pollIntervalMs: 60_000,
@@ -25,16 +25,16 @@ vi.mock("./config.js", () => ({
   }),
 }));
 
-import { runAgentLoop } from "../core/agent.js";
-import { getSchedulerConfig } from "./config.js";
+import { runAgentLoop } from "@/core/agent.js";
+import { getSchedulerConfig } from "@/scheduler/config.js";
 import {
   advanceRecurringJob,
   claimJob,
   getDueJobs,
   recoverStaleJobs,
   updateJobStatus,
-} from "./db.js";
-import { executeJob, startSchedulerLoop, stopSchedulerLoop, tick } from "./loop.js";
+} from "@/scheduler/db.js";
+import { executeJob, startSchedulerLoop, stopSchedulerLoop, tick } from "@/scheduler/loop.js";
 
 const mockRunAgentLoop = vi.mocked(runAgentLoop);
 const mockGetDueJobs = vi.mocked(getDueJobs);

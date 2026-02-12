@@ -1,10 +1,10 @@
 import { execSync } from "node:child_process";
 import * as crypto from "node:crypto";
+import { getGitHubWebhookSecret } from "@/config/config.js";
+import { runAgentLoop } from "@/core/agent.js";
+import { writeDeployState } from "@/core/deploy-state.js";
+import type { DeployCommit } from "@/core/deploy-state.js";
 import { Hono } from "hono";
-import { getGitHubWebhookSecret } from "../config/config.js";
-import { runAgentLoop } from "../core/agent.js";
-import { writeDeployState } from "../core/deploy-state.js";
-import type { DeployCommit } from "../core/deploy-state.js";
 
 /** Thread ID used for all deploy sessions — ensures session continuity across restarts */
 const DEPLOY_THREAD_ID = "deploy_session";

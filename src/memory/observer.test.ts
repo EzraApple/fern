@@ -1,5 +1,5 @@
+import type { ArchiveWatermark, OpenCodeMessage } from "@/memory/types.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ArchiveWatermark, OpenCodeMessage } from "./types.js";
 
 // Mock PQueue to execute immediately
 vi.mock("p-queue", () => ({
@@ -16,7 +16,7 @@ vi.mock("ulid", () => ({
 }));
 
 // Mock config
-vi.mock("./config.js", () => ({
+vi.mock("@/memory/config.js", () => ({
   getMemoryConfig: () => ({
     enabled: true,
     storagePath: "/tmp/test-memory",
@@ -32,17 +32,17 @@ vi.mock("./config.js", () => ({
 
 // Mock dependencies
 const mockGetSessionMessages = vi.fn();
-vi.mock("../core/opencode-service.js", () => ({
+vi.mock("@/core/opencode/queries.js", () => ({
   getSessionMessages: (...args: unknown[]) => mockGetSessionMessages(...args),
 }));
 
 const mockInsertSummary = vi.fn();
-vi.mock("./db.js", () => ({
+vi.mock("@/memory/db/summaries.js", () => ({
   insertSummary: (...args: unknown[]) => mockInsertSummary(...args),
 }));
 
 const mockEmbedText = vi.fn();
-vi.mock("./embeddings.js", () => ({
+vi.mock("@/memory/embeddings.js", () => ({
   embedText: (...args: unknown[]) => mockEmbedText(...args),
 }));
 
@@ -51,7 +51,7 @@ const mockWriteWatermark = vi.fn();
 const mockWriteChunk = vi.fn();
 const mockEnsureStorageDirectories = vi.fn();
 
-vi.mock("./storage.js", () => ({
+vi.mock("@/memory/storage.js", () => ({
   readWatermark: (...args: unknown[]) => mockReadWatermark(...args),
   writeWatermark: (...args: unknown[]) => mockWriteWatermark(...args),
   writeChunk: (...args: unknown[]) => mockWriteChunk(...args),
@@ -59,11 +59,11 @@ vi.mock("./storage.js", () => ({
 }));
 
 const mockSummarizeChunk = vi.fn();
-vi.mock("./summarizer.js", () => ({
+vi.mock("@/memory/summarizer.js", () => ({
   summarizeChunk: (...args: unknown[]) => mockSummarizeChunk(...args),
 }));
 
-import { onTurnComplete } from "./observer.js";
+import { onTurnComplete } from "@/memory/observer.js";
 
 function makeMsg(id: string, tokenCount: number): OpenCodeMessage {
   return {
@@ -86,13 +86,13 @@ describe("onTurnComplete", () => {
   it("does nothing when memory is disabled", async () => {
     vi.resetModules();
 
-    vi.doMock("./config.js", () => ({
+    vi.doMock("@/memory/config.js", () => ({
       getMemoryConfig: () => ({
         enabled: false,
       }),
     }));
 
-    const { onTurnComplete: otc } = await import("./observer.js");
+    const { onTurnComplete: otc } = await import("@/memory/observer.js");
     await otc("thread-1", "sess-1");
 
     expect(mockGetSessionMessages).not.toHaveBeenCalled();

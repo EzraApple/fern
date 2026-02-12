@@ -28,12 +28,12 @@ vi.mock("node:path", async () => {
 vi.mock("ulid", () => ({
   ulid: vi.fn(() => "MOCK_ULID_001"),
 }));
-vi.mock("../config/config.js", () => ({
+vi.mock("@/config/config.js", () => ({
   loadConfig: vi.fn(() => ({
     workspaces: { basePath: "/tmp/fern-workspaces" },
   })),
 }));
-vi.mock("./github-service.js", () => ({
+vi.mock("@/core/github/auth.js", () => ({
   getAuthenticatedCloneUrl: vi.fn((_url: string) =>
     Promise.resolve("https://x-access-token:mock-token@github.com/test/repo.git")
   ),
@@ -41,7 +41,6 @@ vi.mock("./github-service.js", () => ({
 
 import { exec } from "node:child_process";
 import * as fs from "node:fs";
-import { ulid } from "ulid";
 import {
   cleanupAllWorkspaces,
   cleanupStaleWorkspaces,
@@ -51,7 +50,8 @@ import {
   getWorkspaceById,
   registerCleanupHandlers,
   updateWorkspaceBranch,
-} from "./workspace.js";
+} from "@/core/workspace.js";
+import { ulid } from "ulid";
 
 const mockExec = exec as unknown as ReturnType<typeof vi.fn>;
 const mockUlid = ulid as unknown as ReturnType<typeof vi.fn>;

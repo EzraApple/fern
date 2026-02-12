@@ -1,7 +1,7 @@
+import type { WhatsAppAdapter } from "@/channels/whatsapp/index.js";
+import { getWebhookBaseUrl } from "@/config/config.js";
+import { runAgentLoop } from "@/core/index.js";
 import { Hono } from "hono";
-import type { WhatsAppAdapter } from "../channels/whatsapp/index.js";
-import { getWebhookBaseUrl } from "../config/config.js";
-import { runAgentLoop } from "../core/index.js";
 
 export function createWhatsAppWebhookRoutes(adapter: WhatsAppAdapter): Hono {
   const app = new Hono();

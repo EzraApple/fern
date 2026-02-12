@@ -1,4 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getFailureCounts,
   getWatchdogConfig,
@@ -9,7 +8,8 @@ import {
   resetSchedulerFailures,
   resetWatchdog,
   triggerWatchdogShutdown,
-} from "./watchdog.js";
+} from "@/core/watchdog.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("watchdog", () => {
   beforeEach(() => {

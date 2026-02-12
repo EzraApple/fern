@@ -10,7 +10,7 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - Agent loop: message → OpenCode SDK → tool execution → response
 - Session storage: OpenCode file-based storage in `~/.local/share/opencode/storage/`
 - HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`, `/webhooks/github`, `/api/*` dashboard endpoints)
-- Tools: 16 tools — `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + `send_message` + `trigger_update` + `trigger_rollback` + built-in coding tools (read, edit, write, bash, glob, grep)
+- Tools: 20 tools — `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + 4 task tools + `send_message` + `trigger_update` + `trigger_rollback` + built-in coding tools (read, edit, write, bash, glob, grep)
 - WhatsApp channel via Twilio (webhook-based)
 - Dynamic system prompt from `config/SYSTEM_PROMPT.md` with self-improvement workflow
 - OpenCode embedded server (port 4096-4300)
@@ -21,6 +21,7 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - **Hardening**: Internal API auth (shared-secret middleware), Twilio webhook signature verification, watchdog with WhatsApp failure alerts, pm2 process supervision.
 - **Skills**: 5 skills (`adding-skills`, `adding-mcps`, `adding-tools`, `self-update`, `verify-update`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
 - **Auto-Update**: GitHub webhook detects pushes to main → agent reviews changes, notifies user, triggers update → updater script (separate pm2 process) pulls/builds/restarts → agent resumes same session for verification → rollback if broken. Thread-session map persisted in SQLite for session continuity across restarts.
+- **Task Tracking**: In-session task/todo system. 4 tools (`task_create`, `task_update`, `task_list`, `task_next`) for breaking complex work into tracked steps. Thread-scoped, flat ordered list, 7-day cleanup for done/cancelled tasks.
 - **MCP**: Fetch MCP (`@modelcontextprotocol/server-fetch`) for web content retrieval. Configured in `src/.opencode/opencode.jsonc`.
 
 ## Quick Commands
@@ -88,9 +89,17 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 | `src/.opencode/tool/send-message.ts` | `send_message` tool — proactive outbound messaging to any channel |
 | `src/.opencode/tool/trigger-update.ts` | `trigger_update` tool — writes flag file to trigger updater script |
 | `src/.opencode/tool/trigger-rollback.ts` | `trigger_rollback` tool — writes flag file to trigger rollback |
+| `src/.opencode/tool/task-create.ts` | `task_create` tool — create a task for multi-step work |
+| `src/.opencode/tool/task-update.ts` | `task_update` tool — update task status/details |
+| `src/.opencode/tool/task-list.ts` | `task_list` tool — list all tasks for a session |
+| `src/.opencode/tool/task-next.ts` | `task_next` tool — get the next task to work on |
+| `src/tasks/types.ts` | Task, TaskStatus, CreateTaskInput type definitions |
+| `src/tasks/db.ts` | Tasks DB schema + CRUD on `tasks` table in memory DB |
+| `src/tasks/index.ts` | Public exports: initTasks, all DB functions and types |
+| `src/server/tasks-api.ts` | Internal tasks API endpoints (create, list, update, next) |
 | `src/.opencode/skill/self-update/` | Pre-update skill — review changes, notify user, trigger deploy |
 | `src/.opencode/skill/verify-update/` | Post-update skill — health checks, rollback, fix PR guidance |
-| `src/server/server.ts` | HTTP routes (includes internal memory, scheduler, channel, and dashboard APIs) |
+| `src/server/server.ts` | HTTP routes (includes internal memory, scheduler, tasks, channel, and dashboard APIs) |
 | `src/server/dashboard-api.ts` | Public dashboard API endpoints (sessions, memories, archives, GitHub PRs, tools) |
 | `src/server/memory-api.ts` | Internal memory API endpoints (write, search, read, delete) |
 | `src/server/scheduler-api.ts` | Internal scheduler API endpoints (create, list, get, cancel) |
@@ -227,6 +236,16 @@ MCP (Model Context Protocol) servers provide external tools, configured in `src/
 - **send_message tool**: Enables proactive outbound messaging to any channel from any session. Calls `/internal/channel/send` which looks up adapter from registry.
 - **Config via env vars**: `FERN_SCHEDULER_ENABLED`, `FERN_SCHEDULER_POLL_INTERVAL_MS`, `FERN_SCHEDULER_MAX_CONCURRENT`
 
+### Task Management
+- **Storage**: SQLite `tasks` table in existing `~/.fern/memory/fern.db` (shared with memory and scheduler)
+- **Thread-scoped**: Tasks belong to a thread (session ID). Agent passes `threadId` as an explicit arg (same as `memory_search`).
+- **Statuses**: `pending → in_progress → done | cancelled`
+- **Ordering**: Flat list with `sort_order`. Display order: in_progress first, then pending by sort_order, then done, then cancelled.
+- **4 tools**: `task_create`, `task_update`, `task_list`, `task_next` — all return formatted checklist after mutations.
+- **HTTP proxy pattern**: Same as memory/scheduler — tools call internal API (`/internal/tasks/*`) via `fetch()`.
+- **Cleanup**: 7-day auto-cleanup of done/cancelled tasks on startup.
+- **Session ID injection**: `buildSystemPrompt()` injects session ID into channel context so agent can pass it to task tools.
+
 ### Observability Dashboard (Phase 4)
 - **Dashboard API**: Public REST endpoints at `/api/*` on the Fern server (`src/server/dashboard-api.ts`)
 - **Dashboard App**: Next.js 15 app in `apps/dashboard/` (pnpm monorepo workspace, runs on port 3000)
@@ -255,7 +274,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full system design with diagrams.
 **Key layers:**
 - **Core Runtime**: OpenCode SDK manages agent loop, sessions, and tool execution
 - **OpenCode Service**: Embedded server, client management, event streaming
-- **Tools**: 14 tools auto-discovered from `.opencode/tool/`, native module access via HTTP proxy
+- **Tools**: 18 tools auto-discovered from `.opencode/tool/`, native module access via HTTP proxy
 - **Channel Adapters**: WhatsApp (Twilio)
 - **Memory**: SQLite + sqlite-vec, async archival, persistent memories, hybrid search
 - **Scheduling**: SQLite job queue, cron support, background polling loop
@@ -299,6 +318,7 @@ fern/                              # pnpm monorepo
 │   ├── memory/                    # Async archival, persistent memory, hybrid search
 │   │   └── db/                    # SQLite database (schema, summaries, memories, thread-sessions)
 │   ├── scheduler/                 # Job scheduling (types, config, db, loop)
+│   ├── tasks/                     # In-session task tracking (types, db, index)
 │   └── .opencode/                 # OpenCode configuration
 │       ├── opencode.jsonc         # MCP servers, permissions
 │       ├── tool/                  # 16 tools (auto-discovered by OpenCode)

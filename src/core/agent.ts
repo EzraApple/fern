@@ -19,7 +19,12 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
 
   // 2. Build system prompt with tool list and channel context
   const tools = await listTools();
-  const systemPrompt = buildSystemPrompt(tools, input.channelName, input.channelUserId);
+  const systemPrompt = buildSystemPrompt(
+    tools,
+    input.channelName,
+    input.channelUserId,
+    input.sessionId
+  );
 
   // 3. Subscribe to events for progress tracking
   const toolCalls: ToolCallRecord[] = [];

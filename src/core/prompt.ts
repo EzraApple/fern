@@ -38,10 +38,17 @@ Formatting: Full markdown supported, including code blocks and tables.`,
 };
 
 /** Get channel-specific prompt addition */
-export function getChannelPrompt(channelName: string, channelUserId?: string): string {
+export function getChannelPrompt(
+  channelName: string,
+  channelUserId?: string,
+  sessionId?: string
+): string {
   let prompt = CHANNEL_PROMPTS[channelName] ?? "";
-  if (channelUserId) {
-    prompt += `\n\n## Current User\n- Channel: ${channelName}\n- User ID: ${channelUserId}`;
+  if (channelUserId || sessionId) {
+    prompt += "\n\n## Current Session";
+    if (channelName) prompt += `\n- Channel: ${channelName}`;
+    if (channelUserId) prompt += `\n- User ID: ${channelUserId}`;
+    if (sessionId) prompt += `\n- Session ID: ${sessionId}`;
   }
   return prompt;
 }
@@ -50,11 +57,12 @@ export function getChannelPrompt(channelName: string, channelUserId?: string): s
 export function buildSystemPrompt(
   toolNames: string[],
   channelName?: string,
-  channelUserId?: string
+  channelUserId?: string,
+  sessionId?: string
 ): string {
   const base = loadBasePrompt();
   const toolDescriptions = generateToolDescriptions(toolNames);
-  const channelContext = channelName ? getChannelPrompt(channelName, channelUserId) : "";
+  const channelContext = channelName ? getChannelPrompt(channelName, channelUserId, sessionId) : "";
 
   return base.replace("{{TOOLS}}", toolDescriptions).replace("{{CHANNEL_CONTEXT}}", channelContext);
 }

@@ -132,6 +132,43 @@ describe("prompt", () => {
     });
   });
 
+  describe("getChannelPrompt — session ID injection", () => {
+    it("should include session ID when provided", async () => {
+      mockReadFileSync.mockReturnValue("");
+      const { getChannelPrompt } = await import("./prompt.js");
+
+      const result = getChannelPrompt("whatsapp", "+1234567890", "whatsapp_+1234567890");
+      expect(result).toContain("Session ID: whatsapp_+1234567890");
+    });
+
+    it("should include both user ID and session ID", async () => {
+      mockReadFileSync.mockReturnValue("");
+      const { getChannelPrompt } = await import("./prompt.js");
+
+      const result = getChannelPrompt("whatsapp", "+1234567890", "whatsapp_+1234567890");
+      expect(result).toContain("User ID: +1234567890");
+      expect(result).toContain("Session ID: whatsapp_+1234567890");
+    });
+
+    it("should not include session section when no userId or sessionId", async () => {
+      mockReadFileSync.mockReturnValue("");
+      const { getChannelPrompt } = await import("./prompt.js");
+
+      const result = getChannelPrompt("whatsapp");
+      expect(result).not.toContain("Current Session");
+    });
+  });
+
+  describe("buildSystemPrompt — session ID", () => {
+    it("should pass sessionId through to channel prompt", async () => {
+      mockReadFileSync.mockReturnValue("{{TOOLS}}\n{{CHANNEL_CONTEXT}}");
+      const { buildSystemPrompt } = await import("./prompt.js");
+
+      const result = buildSystemPrompt(["echo"], "whatsapp", "+1234567890", "whatsapp_+1234567890");
+      expect(result).toContain("Session ID: whatsapp_+1234567890");
+    });
+  });
+
   describe("buildSystemPrompt", () => {
     it("should replace {{TOOLS}} and {{CHANNEL_CONTEXT}} placeholders", async () => {
       mockReadFileSync.mockReturnValue("Tools:\n{{TOOLS}}\n\nChannel:\n{{CHANNEL_CONTEXT}}");

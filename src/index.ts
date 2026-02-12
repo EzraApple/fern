@@ -23,6 +23,7 @@ import * as workspace from "@/core/workspace.js";
 import { closeDb, initMemoryDb } from "@/memory/index.js";
 import { initScheduler, stopScheduler } from "@/scheduler/index.js";
 import { createServer } from "@/server/index.js";
+import { initTasks } from "@/tasks/index.js";
 import { serve } from "@hono/node-server";
 
 export const VERSION = "0.2.0";
@@ -171,6 +172,10 @@ ${commitSummary}`,
   // Initialize scheduler (creates schema + starts background loop)
   initScheduler();
   console.info("✓ Scheduler initialized");
+
+  // Initialize task system (creates schema + cleans up old tasks)
+  initTasks();
+  console.info("✓ Tasks initialized");
 
   const app = createServer({ whatsappAdapter, channelAdapters });
 

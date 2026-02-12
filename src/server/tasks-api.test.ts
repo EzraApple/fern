@@ -210,9 +210,11 @@ describe("createTasksApi", () => {
   });
 
   describe("POST /internal/tasks/update/:id", () => {
-    it("updates task status", async () => {
+    it("updates task status and returns full list", async () => {
       const task = makeTask({ id: "task_u1" });
-      mockGetTaskById.mockReturnValueOnce(task).mockReturnValueOnce({ ...task, status: "done" });
+      const updatedTask = { ...task, status: "done" as const };
+      mockGetTaskById.mockReturnValueOnce(task).mockReturnValueOnce(updatedTask);
+      mockListTasksByThread.mockReturnValue([updatedTask]);
 
       const res = await app.request("/internal/tasks/update/task_u1", {
         method: "POST",
@@ -221,16 +223,18 @@ describe("createTasksApi", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as Task;
-      expect(body.status).toBe("done");
+      const body = (await res.json()) as { task: Task; tasks: Task[] };
+      expect(body.task.status).toBe("done");
+      expect(body.tasks).toHaveLength(1);
       expect(mockUpdateTask).toHaveBeenCalledWith("task_u1", { status: "done" });
+      expect(mockListTasksByThread).toHaveBeenCalledWith("test_thread");
     });
 
     it("updates task title", async () => {
       const task = makeTask({ id: "task_u2" });
-      mockGetTaskById
-        .mockReturnValueOnce(task)
-        .mockReturnValueOnce({ ...task, title: "Updated title" });
+      const updatedTask = { ...task, title: "Updated title" };
+      mockGetTaskById.mockReturnValueOnce(task).mockReturnValueOnce(updatedTask);
+      mockListTasksByThread.mockReturnValue([updatedTask]);
 
       const res = await app.request("/internal/tasks/update/task_u2", {
         method: "POST",
@@ -239,8 +243,8 @@ describe("createTasksApi", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as Task;
-      expect(body.title).toBe("Updated title");
+      const body = (await res.json()) as { task: Task; tasks: Task[] };
+      expect(body.task.title).toBe("Updated title");
     });
 
     it("returns 404 for non-existent task", async () => {

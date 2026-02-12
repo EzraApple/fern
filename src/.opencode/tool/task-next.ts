@@ -33,7 +33,12 @@ export const task_next = tool({
       }
 
       const data = (await res.json()) as {
-        task: { id: string; title: string; status: string } | null;
+        task: {
+          id: string;
+          title: string;
+          description?: string;
+          status: string;
+        } | null;
       };
       if (!data.task) {
         // Check if there are any tasks at all
@@ -49,7 +54,9 @@ export const task_next = tool({
         return "No tasks for this session.";
       }
 
-      return `Next: ${data.task.id} — ${data.task.title}`;
+      let result = `Next: ${data.task.id} — ${data.task.title}`;
+      if (data.task.description) result += `\nDetails: ${data.task.description}`;
+      return result;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return `Error getting next task: ${msg}`;

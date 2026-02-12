@@ -92,7 +92,8 @@ describe("agent", () => {
       expect(mockBuildSystemPrompt).toHaveBeenCalledWith(
         ["echo", "time", "bash"],
         "whatsapp",
-        undefined
+        undefined,
+        "whatsapp_+1234567890"
       );
     });
 
@@ -233,7 +234,8 @@ describe("agent", () => {
       expect(mockBuildSystemPrompt).toHaveBeenCalledWith(
         ["echo", "time", "bash"],
         undefined,
-        undefined
+        undefined,
+        "test-session"
       );
     });
 
@@ -301,7 +303,8 @@ describe("agent", () => {
       expect(mockBuildSystemPrompt).toHaveBeenCalledWith(
         ["echo", "time", "bash"],
         "scheduler",
-        undefined
+        undefined,
+        "scheduler_job-123"
       );
     });
 
@@ -318,7 +321,8 @@ describe("agent", () => {
       expect(mockBuildSystemPrompt).toHaveBeenCalledWith(
         ["echo", "time", "bash"],
         "whatsapp",
-        "+1234567890"
+        "+1234567890",
+        "whatsapp_+1234567890"
       );
     });
   });

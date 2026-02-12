@@ -24,7 +24,7 @@
     "test:scheduler": "vitest run src/scheduler/ src/server/scheduler-api src/server/channel-api",
     "ci": "pnpm run lint && pnpm run tsc",
     "start:prod": "pnpm run build && pm2 start ecosystem.config.cjs",
-    "stop:prod": "pm2 stop fern",
+    "stop:prod": "pm2 stop all",
     "logs": "pm2 logs fern",
     "memory:wipe": "rm -rf ~/.fern/memory ~/.fern/sessions ~/.local/share/opencode/storage && echo 'Full wipe: memory DB, archives, sessions, OpenCode storage.'",
     "recent": "npx tsx scripts/recent-turns.ts",

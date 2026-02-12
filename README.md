@@ -21,7 +21,7 @@ All core phases complete (MVP, Self-Improvement, Memory, Observability, Scheduli
 - **Self-Improvement Loop**: Agent can clone repos, modify code in isolated workspaces, run tests, and create PRs via GitHub App
 - **Workspace Isolation**: All code modifications in temp directories (`/tmp/fern-workspaces/`) with auto-cleanup
 - **GitHub Integration**: Authenticated via GitHub App, PRs created as "Fern" bot
-- **Memory System**: SQLite + sqlite-vec powered memory with OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` for facts/preferences/learnings. Hybrid vector + FTS5 search (`memory_search` → `memory_read`)
+- **Memory System**: SQLite + sqlite-vec powered memory with OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` for facts/preferences/learnings. Hybrid vector + FTS5 search (`memory_search` → `memory_read`). **Auto-retrieval**: Automatically injects relevant memories into context using the user's message as the search query
 - **Scheduling**: SQLite job queue with background polling loop. `schedule` tool creates one-shot or recurring (cron) jobs. Each job stores a self-contained prompt that fires a fresh agent session with full tool access. `send_message` tool enables proactive outbound messaging to any channel.
 - **Observability Dashboard**: Next.js 15 app (`apps/dashboard/`) with views for sessions, memory, tool analytics, GitHub PRs, and cost tracking. Backed by a public dashboard API on the Fern server.
 - **Skills & MCP**: On-demand skills (`adding-skills`, `adding-mcps`, `adding-tools`) for self-guided learning. Fetch MCP for web content retrieval. Configured in `src/.opencode/opencode.jsonc`.
@@ -129,6 +129,20 @@ You need these installed before anything else:
 | **Twilio** | No | WhatsApp channel (Account SID, Auth Token, phone number) |
 | **ngrok** | No | Exposes localhost for Twilio webhooks during local dev |
 
+### Auto-Memory Retrieval (Optional)
+
+Fern automatically retrieves and injects relevant memories into the system prompt before each conversation turn. This happens transparently—the agent doesn't need to explicitly search.
+
+Configure with these environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `FERN_AUTO_MEMORY_ENABLED` | `true` | Enable automatic memory retrieval |
+| `FERN_AUTO_MEMORY_TOP_K` | `3` | Number of memories to retrieve (max: 10) |
+| `FERN_AUTO_MEMORY_MIN_RELEVANCE` | `0.3` | Minimum relevance score (0-1) |
+| `FERN_AUTO_MEMORY_MAX_CHARS` | `2000` | Max characters of memory context to inject |
+| `FERN_AUTO_MEMORY_THREAD_SCOPED` | `false` | Only search within current conversation thread |
+
 ### Auto-created on first run
 
 These directories are created automatically — no manual setup needed:
@@ -217,6 +231,7 @@ pnpm run logs
 | Skills & MCP | On-demand skills + Fetch MCP | Agent loads knowledge when needed; web access for research |
 | Memory (archival) | Async observer + JSON chunks + SQLite + embeddings | Captures history before compaction, two-phase retrieval |
 | Memory (persistent) | SQLite + sqlite-vec + OpenAI embeddings | Agent-writable, vector-searchable facts/preferences/learnings |
+| Memory (retrieval) | Auto-RAG with hybrid search | Automatically retrieves relevant memories using user message as query, injects into prompt context |
 | Scheduling | SQLite + setInterval + PQueue | Prompt-based jobs, agent autonomy, no external deps |
 | Channels | Adapter pattern | Add channels without core changes |
 | Self-improvement | PR-only, no direct merge | Safety boundary, human in loop |

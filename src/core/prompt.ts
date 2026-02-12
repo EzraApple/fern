@@ -53,16 +53,34 @@ export function getChannelPrompt(
   return prompt;
 }
 
-/** Assemble the full system prompt with tools and channel context */
-export function buildSystemPrompt(
+/** Assemble the full system prompt with tools, channel context, and relevant memories */
+export async function buildSystemPrompt(
   toolNames: string[],
   channelName?: string,
   channelUserId?: string,
-  sessionId?: string
-): string {
+  sessionId?: string,
+  userMessage?: string
+): Promise<string> {
   const base = loadBasePrompt();
   const toolDescriptions = generateToolDescriptions(toolNames);
   const channelContext = channelName ? getChannelPrompt(channelName, channelUserId, sessionId) : "";
 
-  return base.replace("{{TOOLS}}", toolDescriptions).replace("{{CHANNEL_CONTEXT}}", channelContext);
+  // Auto-retrieve relevant memories if we have a user message
+  let memoryContext = "";
+  if (userMessage && userMessage.trim().length > 0) {
+    try {
+      const memories = await retrieveRelevantMemories(userMessage, sessionId);
+      memoryContext = formatMemoriesForContext(memories);
+    } catch (error) {
+      // Best-effort: log but don't fail if memory retrieval fails
+      console.warn(
+        "[Prompt] Memory retrieval failed:",
+        error instanceof Error ? error.message : error
+      );
+    }
+  }
+
+  return base
+    .replace("{{TOOLS}}", toolDescriptions)
+    .replace("{{CHANNEL_CONTEXT}}", channelContext + memoryContext);
 }

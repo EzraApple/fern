@@ -7,10 +7,21 @@ vi.mock("node:fs", () => ({
   readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
 }));
 
+// Mock the memory auto-retrieval module
+const mockRetrieveRelevantMemories = vi.fn();
+const mockFormatMemoriesForContext = vi.fn();
+
+vi.mock("@/memory/auto-retrieval.js", () => ({
+  retrieveRelevantMemories: (...args: unknown[]) => mockRetrieveRelevantMemories(...args),
+  formatMemoriesForContext: (...args: unknown[]) => mockFormatMemoriesForContext(...args),
+}));
+
 describe("prompt", () => {
   beforeEach(() => {
     vi.resetModules();
     mockReadFileSync.mockReset();
+    mockRetrieveRelevantMemories.mockReset();
+    mockFormatMemoriesForContext.mockReset();
   });
 
   describe("loadBasePrompt", () => {
@@ -162,9 +173,16 @@ describe("prompt", () => {
   describe("buildSystemPrompt — session ID", () => {
     it("should pass sessionId through to channel prompt", async () => {
       mockReadFileSync.mockReturnValue("{{TOOLS}}\n{{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockResolvedValue(null);
+      mockFormatMemoriesForContext.mockReturnValue("");
       const { buildSystemPrompt } = await import("./prompt.js");
 
-      const result = buildSystemPrompt(["echo"], "whatsapp", "+1234567890", "whatsapp_+1234567890");
+      const result = await buildSystemPrompt(
+        ["echo"],
+        "whatsapp",
+        "+1234567890",
+        "whatsapp_+1234567890"
+      );
       expect(result).toContain("Session ID: whatsapp_+1234567890");
     });
   });
@@ -172,9 +190,11 @@ describe("prompt", () => {
   describe("buildSystemPrompt", () => {
     it("should replace {{TOOLS}} and {{CHANNEL_CONTEXT}} placeholders", async () => {
       mockReadFileSync.mockReturnValue("Tools:\n{{TOOLS}}\n\nChannel:\n{{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockResolvedValue(null);
+      mockFormatMemoriesForContext.mockReturnValue("");
       const { buildSystemPrompt } = await import("./prompt.js");
 
-      const result = buildSystemPrompt(["echo", "time"], "whatsapp");
+      const result = await buildSystemPrompt(["echo", "time"], "whatsapp");
 
       expect(result).toContain("- echo\n- time");
       expect(result).toContain("WhatsApp");
@@ -184,9 +204,11 @@ describe("prompt", () => {
 
     it("should replace {{CHANNEL_CONTEXT}} with empty string when no channel given", async () => {
       mockReadFileSync.mockReturnValue("Base {{TOOLS}} end {{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockResolvedValue(null);
+      mockFormatMemoriesForContext.mockReturnValue("");
       const { buildSystemPrompt } = await import("./prompt.js");
 
-      const result = buildSystemPrompt(["bash"]);
+      const result = await buildSystemPrompt(["bash"]);
 
       expect(result).toContain("- bash");
       expect(result).toBe("Base - bash end ");
@@ -194,31 +216,105 @@ describe("prompt", () => {
 
     it("should replace {{CHANNEL_CONTEXT}} with empty string for unknown channel", async () => {
       mockReadFileSync.mockReturnValue("{{TOOLS}} | {{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockResolvedValue(null);
+      mockFormatMemoriesForContext.mockReturnValue("");
       const { buildSystemPrompt } = await import("./prompt.js");
 
-      const result = buildSystemPrompt(["tool1"], "telegram");
+      const result = await buildSystemPrompt(["tool1"], "telegram");
 
       expect(result).toBe("- tool1 | ");
     });
 
     it("should handle empty tool list", async () => {
       mockReadFileSync.mockReturnValue("{{TOOLS}}|{{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockResolvedValue(null);
+      mockFormatMemoriesForContext.mockReturnValue("");
       const { buildSystemPrompt } = await import("./prompt.js");
 
-      const result = buildSystemPrompt([]);
+      const result = await buildSystemPrompt([]);
 
       expect(result).toBe("|");
     });
 
     it("should inject scheduler channel context when channelName is 'scheduler'", async () => {
       mockReadFileSync.mockReturnValue("{{TOOLS}}\n{{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockResolvedValue(null);
+      mockFormatMemoriesForContext.mockReturnValue("");
       const { buildSystemPrompt } = await import("./prompt.js");
 
-      const result = buildSystemPrompt(["echo"], "scheduler");
+      const result = await buildSystemPrompt(["echo"], "scheduler");
 
       expect(result).toContain("Scheduler");
       expect(result).toContain("autonomous");
       expect(result).not.toContain("{{CHANNEL_CONTEXT}}");
+    });
+  });
+
+  describe("buildSystemPrompt — auto memory retrieval", () => {
+    it("should retrieve and inject relevant memories when userMessage is provided", async () => {
+      mockReadFileSync.mockReturnValue("{{TOOLS}}\n{{CHANNEL_CONTEXT}}");
+      const mockMemories = [{ text: "User likes coffee", source: "memory", relevance: 0.9 }];
+      mockRetrieveRelevantMemories.mockResolvedValue(mockMemories);
+      mockFormatMemoriesForContext.mockReturnValue(
+        "\n## Relevant Context from Memory\nUser likes coffee"
+      );
+      const { buildSystemPrompt } = await import("./prompt.js");
+
+      const result = await buildSystemPrompt(
+        ["echo"],
+        "whatsapp",
+        "+1234567890",
+        "whatsapp_+1234567890",
+        "What should I drink?"
+      );
+
+      expect(mockRetrieveRelevantMemories).toHaveBeenCalledWith(
+        "What should I drink?",
+        "whatsapp_+1234567890"
+      );
+      expect(mockFormatMemoriesForContext).toHaveBeenCalledWith(mockMemories);
+      expect(result).toContain("Relevant Context from Memory");
+      expect(result).toContain("User likes coffee");
+    });
+
+    it("should not retrieve memories when userMessage is empty", async () => {
+      mockReadFileSync.mockReturnValue("{{TOOLS}}\n{{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockResolvedValue(null);
+      mockFormatMemoriesForContext.mockReturnValue("");
+      const { buildSystemPrompt } = await import("./prompt.js");
+
+      const _result = await buildSystemPrompt(["echo"], "whatsapp");
+
+      expect(mockRetrieveRelevantMemories).not.toHaveBeenCalled();
+    });
+
+    it("should not fail when memory retrieval throws", async () => {
+      mockReadFileSync.mockReturnValue("{{TOOLS}}\n{{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockRejectedValue(new Error("DB error"));
+      const { buildSystemPrompt } = await import("./prompt.js");
+
+      const result = await buildSystemPrompt(
+        ["echo"],
+        "whatsapp",
+        undefined,
+        undefined,
+        "test message"
+      );
+
+      expect(result).toContain("- echo");
+      expect(result).not.toContain("Relevant Context from Memory");
+    });
+
+    it("should skip very short messages", async () => {
+      mockReadFileSync.mockReturnValue("{{TOOLS}}\n{{CHANNEL_CONTEXT}}");
+      mockRetrieveRelevantMemories.mockResolvedValue(null);
+      mockFormatMemoriesForContext.mockReturnValue("");
+      const { buildSystemPrompt } = await import("./prompt.js");
+
+      await buildSystemPrompt(["echo"], "whatsapp", undefined, undefined, "hi");
+
+      // Short messages should still trigger retrieval (the filtering happens in retrieveRelevantMemories)
+      expect(mockRetrieveRelevantMemories).toHaveBeenCalledWith("hi", undefined);
     });
   });
 });

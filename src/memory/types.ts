@@ -118,3 +118,29 @@ export interface MemoryArchivalConfig {
   embeddingModel: string;
   dbPath: string;
 }
+
+/** Configuration for automatic memory retrieval */
+export interface AutoRetrievalConfig {
+  /** Enable automatic memory retrieval (default: true) */
+  enabled: boolean;
+  /** Number of memories to retrieve (default: 3) */
+  topK: number;
+  /** Minimum relevance score to include (0-1, default: 0.3) */
+  minRelevance: number;
+  /** Maximum characters of memory text to include (default: 2000) */
+  maxContextChars: number;
+  /** Whether to search across all threads or just current (default: false = all threads) */
+  threadScoped: boolean;
+}
+
+/** Represents a retrieved memory formatted for context injection */
+export interface RetrievedMemory {
+  text: string;
+  source: "archive" | "memory";
+  relevance: number;
+  /** For archives: the time range of the original conversation */
+  timeRange?: { start: Date; end: Date };
+  /** For persistent memories: the type */
+  memoryType?: "fact" | "preference" | "learning";
+  tags?: string[];
+}

@@ -148,8 +148,8 @@ Key points:
 MCP (Model Context Protocol) servers provide external tools, configured in `src/.opencode/opencode.jsonc`:
 - **Local MCPs**: Run as child processes (stdio transport). Config: `{ "type": "local", "command": [...] }`
 - **Remote MCPs**: Connect to HTTP endpoints. Config: `{ "type": "remote", "url": "..." }`
-- Tools auto-prefixed with server name: server `"fetch"` → tool `fetch_fetch`
-- Current MCPs: `fetch` (`@modelcontextprotocol/server-fetch` — web content retrieval)
+- Tools auto-prefixed with server name: server `"web"` → tool `web_fetch`
+- Current MCPs: `web` (`@modelcontextprotocol/server-fetch` — web content retrieval)
 
 ### Session Storage
 - OpenCode manages sessions in `~/.local/share/opencode/storage/`

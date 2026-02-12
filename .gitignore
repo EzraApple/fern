@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+dist-backup/
 .next/
 
 # Environment
@@ -13,6 +14,7 @@ dist/
 # IDE
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 

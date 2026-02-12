@@ -281,6 +281,45 @@ describe("search", () => {
       expect(memResult?.tags).toEqual(["ui", "output"]);
     });
 
+    it("boosts newer memories over older ones with identical content", async () => {
+      const dbMod = await import("./db/index.js");
+      const now = new Date();
+      const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+      dbMod.insertMemory(
+        {
+          id: "mem_old",
+          type: "fact",
+          content: "The deployment pipeline uses GitHub Actions",
+          tags: [],
+          createdAt: threeMonthsAgo.toISOString(),
+          updatedAt: threeMonthsAgo.toISOString(),
+        },
+        []
+      );
+      dbMod.insertMemory(
+        {
+          id: "mem_new",
+          type: "fact",
+          content: "The deployment pipeline uses GitHub Actions",
+          tags: [],
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        },
+        []
+      );
+
+      const searchMod = await import("./search.js");
+      const results = await searchMod.searchMemory("deployment pipeline GitHub Actions");
+
+      expect(results.length).toBe(2);
+      // Newer memory should rank first due to recency boost
+      expect(results[0]?.id).toBe("mem_new");
+      expect(results[1]?.id).toBe("mem_old");
+      // biome-ignore lint/style/noNonNullAssertion: index is within bounds from length check above
+      expect(results[0]!.relevanceScore).toBeGreaterThan(results[1]!.relevanceScore);
+    });
+
     it("handles queries with special characters gracefully", async () => {
       const searchMod = await import("./search.js");
       // Should not throw on special chars

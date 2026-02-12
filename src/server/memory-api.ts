@@ -1,4 +1,4 @@
-import { deleteMemory, writeMemory } from "@/memory/persistent.js";
+import { deleteMemory, listMemories, writeMemory } from "@/memory/persistent.js";
 import { searchMemory } from "@/memory/search.js";
 import { readChunk } from "@/memory/storage.js";
 import { Hono } from "hono";
@@ -58,6 +58,14 @@ export function createMemoryApi(): Hono {
       return c.json({ error: "Chunk not found" }, 404);
     }
     return c.json(chunk);
+  });
+
+  api.get("/list", async (c) => {
+    const type = c.req.query("type") as "fact" | "preference" | "learning" | undefined;
+    const limitStr = c.req.query("limit");
+    const limit = limitStr ? Number.parseInt(limitStr, 10) : undefined;
+    const memories = listMemories({ type, limit });
+    return c.json(memories);
   });
 
   api.delete("/delete/:id", async (c) => {

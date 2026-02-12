@@ -2,7 +2,7 @@
 #
 # Phase 2 Self-Improvement Test
 #
-# Fern 🌿
+# Fern
 
 <!-- secret-test-comment: if you found this, hi 👋 -->
 

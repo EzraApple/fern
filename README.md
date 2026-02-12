@@ -24,7 +24,7 @@ All core phases complete (MVP, Self-Improvement, Memory, Observability, Scheduli
 - **Memory System**: SQLite + sqlite-vec powered memory with OpenAI embeddings. Async archival layer captures conversation chunks. Persistent `memory_write` for facts/preferences/learnings. Hybrid vector + FTS5 search (`memory_search` → `memory_read`)
 - **Scheduling**: SQLite job queue with background polling loop. `schedule` tool creates one-shot or recurring (cron) jobs. Each job stores a self-contained prompt that fires a fresh agent session with full tool access. `send_message` tool enables proactive outbound messaging to any channel.
 - **Observability Dashboard**: Next.js 15 app (`apps/dashboard/`) with views for sessions, memory, tool analytics, GitHub PRs, and cost tracking. Backed by a public dashboard API on the Fern server.
-- **Skills & MCP**: On-demand skills (`adding-skills`, `adding-mcps`, `adding-tools`) for self-guided learning. Fetch MCP for web content retrieval. Configured in `src/.opencode/opencode.jsonc`.
+- **Skills & MCP**: On-demand skills (`adding-skills`, `adding-mcps`, `adding-tools`, `web-research`) for self-guided learning. Fetch MCP for free URL fetching + Tavily MCP for AI-optimized web search, extraction, and crawling. Configured in `src/.opencode/opencode.jsonc`.
 - **Configuration**: JSON5 config + .env support for API keys, GitHub App credentials, and memory settings
 
 ### Quick Start

@@ -170,7 +170,8 @@ If an MCP provides tools you don't want, disable them in the `tools` config:
 
 | Server | Type | Package/URL | Tools provided |
 |--------|------|-------------|---------------|
-| `fetch` | Local | `@modelcontextprotocol/server-fetch` | `fetch` — fetch any URL and convert to Markdown |
+| `web` | Local | `@modelcontextprotocol/server-fetch` | `fetch` — free general-purpose URL fetching (any URL, API endpoints, raw files) |
+| `tv` | Local | `tavily-mcp` | `tavily-search`, `tavily-extract`, `tavily-map`, `tavily-crawl` — AI-optimized web search, extraction, mapping, and crawling |
 
 ## Finding MCP servers
 

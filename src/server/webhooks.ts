@@ -1,7 +1,69 @@
+import type { Attachment } from "@/channels/types.js";
 import type { WhatsAppAdapter } from "@/channels/whatsapp/index.js";
 import { getWebhookBaseUrl } from "@/config/config.js";
 import { runAgentLoop } from "@/core/index.js";
 import { Hono } from "hono";
+
+/**
+ * Download media from Twilio URL and convert to base64 data URL
+ */
+export async function downloadMediaAsBase64(
+  mediaUrl: string,
+  mimeType: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(mediaUrl);
+    if (!response.ok) {
+      console.error(
+        `[WhatsApp] Failed to download media: ${response.status} ${response.statusText}`
+      );
+      return null;
+    }
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    return `data:${mimeType};base64,${base64}`;
+  } catch (error) {
+    console.error("[WhatsApp] Error downloading media:", error);
+    return null;
+  }
+}
+
+/**
+ * Extract attachments from Twilio webhook body
+ * Twilio sends media with params: NumMedia, MediaUrl0, MediaContentType0, etc.
+ */
+export async function extractAttachments(body: Record<string, string>): Promise<Attachment[]> {
+  // biome-ignore lint/complexity/useLiteralKeys: Twilio sends these as dynamic keys
+  const numMedia = Number.parseInt(body["NumMedia"] || "0", 10);
+  if (numMedia === 0) return [];
+
+  const attachments: Attachment[] = [];
+
+  for (let i = 0; i < numMedia; i++) {
+    const mediaUrl = body[`MediaUrl${i}`];
+    const contentType = body[`MediaContentType${i}`];
+
+    if (!mediaUrl || !contentType) continue;
+
+    // Determine attachment type from mime type
+    let type: Attachment["type"] = "document";
+    if (contentType.startsWith("image/")) type = "image";
+    else if (contentType.startsWith("audio/")) type = "audio";
+    else if (contentType.startsWith("video/")) type = "video";
+
+    // Download and convert to base64
+    const dataUrl = await downloadMediaAsBase64(mediaUrl, contentType);
+    if (dataUrl) {
+      attachments.push({
+        type,
+        url: dataUrl, // Store as data URL for internal use
+        mimeType: contentType,
+      });
+    }
+  }
+
+  return attachments;
+}
 
 export function createWhatsAppWebhookRoutes(adapter: WhatsAppAdapter): Hono {
   const app = new Hono();
@@ -26,14 +88,24 @@ export function createWhatsAppWebhookRoutes(adapter: WhatsAppAdapter): Hono {
     // biome-ignore lint/complexity/useLiteralKeys: Twilio sends these as dynamic keys
     const from = body["From"];
     // biome-ignore lint/complexity/useLiteralKeys: Twilio sends these as dynamic keys
-    const messageBody = body["Body"];
+    const messageBody = body["Body"] || "";
+    // biome-ignore lint/complexity/useLiteralKeys: Twilio sends these as dynamic keys
+    const numMedia = Number.parseInt(body["NumMedia"] || "0", 10);
 
-    if (!from || !messageBody) {
+    if (!from) {
+      return c.text("Bad request", 400);
+    }
+
+    // Allow messages with only media (no text body)
+    if (!messageBody && numMedia === 0) {
       return c.text("Bad request", 400);
     }
 
     const phoneNumber = from.replace("whatsapp:", "");
     const sessionId = adapter.deriveSessionId(phoneNumber);
+
+    // Extract attachments
+    const attachments = await extractAttachments(body);
 
     // Fire agent loop in background — Twilio times out at ~15s but the agent
     // loop can run for minutes. Return 202 immediately so Twilio doesn't retry.
@@ -44,6 +116,7 @@ export function createWhatsAppWebhookRoutes(adapter: WhatsAppAdapter): Hono {
           message: messageBody,
           channelName: "whatsapp",
           channelUserId: phoneNumber,
+          attachments,
         });
 
         await adapter.send({

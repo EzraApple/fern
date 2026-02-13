@@ -47,7 +47,7 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
     // 4. Send prompt and wait for completion
     await prompt(sessionId, input.message, {
       system: systemPrompt,
-      agent: "fern",
+      agent: input.agentType ?? "fern",
     });
 
     // 5. Get response from OpenCode

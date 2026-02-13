@@ -7,6 +7,7 @@ import { createGitHubWebhookRoutes } from "@/server/github-webhook.js";
 import { internalAuth } from "@/server/internal-auth.js";
 import { createMemoryApi } from "@/server/memory-api.js";
 import { createSchedulerApi } from "@/server/scheduler-api.js";
+import { createSubagentApi } from "@/server/subagent-api.js";
 import { createTasksApi } from "@/server/tasks-api.js";
 import { createWhatsAppWebhookRoutes } from "@/server/webhooks.js";
 import { Hono } from "hono";
@@ -86,6 +87,9 @@ export function createServer(options?: ServerOptions) {
 
   // Mount internal tasks API
   app.route("/internal/tasks", createTasksApi());
+
+  // Mount internal subagent API
+  app.route("/internal/subagent", createSubagentApi());
 
   // Mount dashboard API
   app.route("/api", createDashboardApi());

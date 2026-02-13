@@ -41,6 +41,7 @@ Don't guess at patterns when a skill exists. Load it, follow it.
 - Need to search the web? → `tv_tavily-search`; load `web-research` skill for multi-step research
 - Have a specific URL to read? → `web_fetch` (free, any URL) or `tv_tavily-extract` (smart extraction with query targeting)
 - Need to explore a website? → `tv_tavily-map` to discover URLs, `tv_tavily-crawl` for full content
+- Need parallel research or exploration? → `spawn_task` to delegate, `check_task` to collect results. Spawn multiple for parallelism.
 
 **Available tools:**
 {{TOOLS}}

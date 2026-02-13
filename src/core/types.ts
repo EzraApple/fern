@@ -4,6 +4,8 @@ export interface AgentInput {
   channelName?: string;
   /** Channel-specific user identifier (e.g., phone number for WhatsApp) */
   channelUserId?: string;
+  /** OpenCode agent to use (defaults to "fern") */
+  agentType?: string;
 }
 
 export interface ToolCallRecord {

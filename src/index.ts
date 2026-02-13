@@ -26,6 +26,7 @@ import * as workspace from "@/core/workspace.js";
 import { closeDb, initMemoryDb } from "@/memory/index.js";
 import { initScheduler, stopScheduler } from "@/scheduler/index.js";
 import { createServer } from "@/server/index.js";
+import { initSubagent, stopSubagent } from "@/subagent/index.js";
 import { initTasks } from "@/tasks/index.js";
 import { serve } from "@hono/node-server";
 
@@ -55,6 +56,10 @@ async function main() {
     shuttingDown = true;
 
     console.info("\nShutting down...");
+
+    console.info("  Stopping subagent executor...");
+    stopSubagent();
+    console.info("  ✓ Subagent executor stopped");
 
     console.info("  Stopping scheduler...");
     stopScheduler();
@@ -197,6 +202,10 @@ ${commitSummary}`,
   // Initialize task system (creates schema + cleans up old tasks)
   initTasks();
   console.info("✓ Tasks initialized");
+
+  // Initialize subagent system (creates schema + recovers stale tasks)
+  initSubagent();
+  console.info("✓ Subagent system initialized");
 
   const app = createServer({ whatsappAdapter, channelAdapters });
 

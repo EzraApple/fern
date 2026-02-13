@@ -186,7 +186,11 @@ ${commitSummary}`,
         console.info("[Deploy] Verification session completed");
       } catch (error) {
         console.error("[Deploy] Verification session error:", error);
-        clearDeployState();
+        try {
+          clearDeployState();
+        } catch (cleanupErr) {
+          console.error("[Deploy] Failed to clear deploy state:", cleanupErr);
+        }
       }
     })();
   } else if (deployState && deployState.status === "verifying") {

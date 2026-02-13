@@ -136,7 +136,11 @@ export async function subscribeToEvents(
         // Map event types to progress events
         const progressEvent = mapToProgressEvent(event, sessionId);
         if (progressEvent) {
-          await callback(progressEvent);
+          try {
+            await callback(progressEvent);
+          } catch (cbErr) {
+            console.error("[OpenCode] Event callback error:", cbErr);
+          }
 
           if (progressEvent.type === "session_idle") {
             receivedSessionIdle = true;

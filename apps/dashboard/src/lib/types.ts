@@ -169,6 +169,22 @@ export interface ArchiveChunk {
   createdAt: string;
 }
 
+// Scheduler types
+export interface ScheduledJob {
+  id: string;
+  type: "one_shot" | "recurring";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  prompt: string;
+  scheduledAt: string;
+  cronExpr?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  lastRunResponse?: string;
+  lastError?: string;
+  metadata: Record<string, unknown>;
+}
+
 // GitHub types
 export interface PRSummary {
   number: number;

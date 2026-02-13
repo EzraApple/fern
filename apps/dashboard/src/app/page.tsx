@@ -1,7 +1,7 @@
 "use client";
 
-import { useArchives, useMemories, usePRs, useSessions } from "@/lib/hooks";
-import { Archive, ArrowRight, Brain, GitPullRequest, MessageSquare } from "lucide-react";
+import { useArchives, useMemories, usePRs, useScheduledJobs, useSessions } from "@/lib/hooks";
+import { Archive, ArrowRight, Brain, Calendar, GitPullRequest, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 function OverviewCard({
@@ -49,12 +49,14 @@ export default function OverviewPage() {
   const { data: memories, error: memoriesError } = useMemories();
   const { data: archives, error: archivesError } = useArchives();
   const { data: prs, error: prsError } = usePRs("all");
+  const { data: jobs, error: jobsError } = useScheduledJobs();
 
   const errors = [
     sessionsError && `Sessions: ${sessionsError.message}`,
     memoriesError && `Memories: ${memoriesError.message}`,
     archivesError && `Archives: ${archivesError.message}`,
     prsError && `Pull Requests: ${prsError.message}`,
+    jobsError && `Scheduled Jobs: ${jobsError.message}`,
   ].filter(Boolean);
 
   return (
@@ -89,7 +91,7 @@ export default function OverviewPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <OverviewCard
           href="/sessions"
           label="Sessions"
@@ -110,6 +112,13 @@ export default function OverviewPage() {
           count={archives?.length}
           icon={Archive}
           color="var(--warning)"
+        />
+        <OverviewCard
+          href="/scheduler"
+          label="Scheduled Jobs"
+          count={jobs?.length}
+          icon={Calendar}
+          color="#f97316"
         />
         <OverviewCard
           href="/github"

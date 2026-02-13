@@ -10,6 +10,8 @@ import { listMemories } from "@/memory/db/memories.js";
 import { listSummaries } from "@/memory/db/summaries.js";
 import { searchMemory } from "@/memory/search.js";
 import { readChunk } from "@/memory/storage.js";
+import { listJobs } from "@/scheduler/db.js";
+import type { JobStatus } from "@/scheduler/types.js";
 import { Hono } from "hono";
 import { z } from "zod";
 
@@ -202,6 +204,90 @@ export function createDashboardApi(): Hono {
     } catch (error) {
       console.error("[Dashboard API] GET /tools failed:", error);
       return c.json({ error: errorMsg(error), tools: [] }, 500);
+    }
+  });
+
+  // ── Scheduler ──────────────────────────────────────────────────────────
+
+  api.get("/scheduler/jobs", (c) => {
+    try {
+      const status = c.req.query("status") as JobStatus | undefined;
+      const limit = c.req.query("limit") ? Number(c.req.query("limit")) : undefined;
+      const jobs = listJobs({ status: status || undefined, limit });
+      return c.json({ jobs });
+    } catch (error) {
+      console.error("[Dashboard API] GET /scheduler/jobs failed:", error);
+      return c.json({ error: errorMsg(error), jobs: [] }, 500);
+    }
+  });
+
+  // ── Session Export ─────────────────────────────────────────────────────
+
+  api.get("/sessions/:id/export", async (c) => {
+    try {
+      const id = c.req.param("id");
+      const session = (await getSession(id)) as Record<string, unknown> | null;
+      if (!session) {
+        return c.json({ error: "Session not found" }, 404);
+      }
+      const raw = await getSessionMessages(id);
+
+      const messages = raw.map((rawMsg) => {
+        const msg = rawMsg as { info: Record<string, unknown>; parts: Record<string, unknown>[] };
+        const info = msg.info;
+        const parts = msg.parts ?? [];
+        const role = info.role as string;
+        const time = info.time as { created: number } | undefined;
+
+        const textParts = parts
+          .filter((p) => p.type === "text")
+          .map((p) => p.text as string)
+          .join("\n");
+
+        const toolCalls = parts
+          .filter((p) => p.type === "tool")
+          .map((p) => {
+            const state = p.state as Record<string, unknown> | undefined;
+            return {
+              tool: p.tool as string,
+              status: state?.status as string,
+              input: (state?.input as Record<string, unknown>) ?? {},
+              output: state?.status === "completed" ? (state?.output as string) : undefined,
+              error: state?.status === "error" ? (state?.error as string) : undefined,
+            };
+          });
+
+        const base: Record<string, unknown> = {
+          role,
+          timestamp: time ? new Date(time.created).toISOString() : undefined,
+          text: textParts || undefined,
+        };
+        if (toolCalls.length > 0) base.toolCalls = toolCalls;
+        if (role === "assistant") {
+          base.tokens = info.tokens;
+          base.cost = info.cost;
+        }
+        return base;
+      });
+
+      const sessionTime = session.time as { created: number } | undefined;
+      const exported = {
+        session: {
+          id: session.id as string,
+          title: (session.title as string) || id,
+          createdAt: sessionTime ? new Date(sessionTime.created).toISOString() : undefined,
+        },
+        messages,
+        exportedAt: new Date().toISOString(),
+      };
+
+      const filename = `fern-session-${(session.title as string) || id}.json`;
+      c.header("Content-Disposition", `attachment; filename="${filename}"`);
+      c.header("Content-Type", "application/json");
+      return c.body(JSON.stringify(exported, null, 2));
+    } catch (error) {
+      console.error("[Dashboard API] GET /sessions/:id/export failed:", error);
+      return c.json({ error: errorMsg(error) }, 500);
     }
   });
 

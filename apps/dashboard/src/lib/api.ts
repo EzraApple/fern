@@ -4,6 +4,7 @@ import type {
   PRStatus,
   PRSummary,
   PersistentMemory,
+  ScheduledJob,
   Session,
   SessionMessage,
   UnifiedSearchResult,
@@ -107,4 +108,17 @@ export async function fetchPRStatus(prNumber: number, repo?: string): Promise<PR
 export async function fetchTools(): Promise<string[]> {
   const data = await fetchJSON<{ tools: string[] }>(`${API_BASE}/tools`);
   return data.tools;
+}
+
+// Scheduler
+export async function fetchScheduledJobs(options?: {
+  status?: string;
+}): Promise<ScheduledJob[]> {
+  const params = new URLSearchParams();
+  if (options?.status) params.set("status", options.status);
+  const qs = params.toString();
+  const data = await fetchJSON<{ jobs: ScheduledJob[] }>(
+    `${API_BASE}/scheduler/jobs${qs ? `?${qs}` : ""}`
+  );
+  return data.jobs;
 }

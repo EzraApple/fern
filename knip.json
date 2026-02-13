@@ -6,6 +6,9 @@
     "src/core/github-service.ts",
     "src/core/workspace-git.ts",
     "src/core/workspace.ts",
+    "src/server/agent.ts",
+    "src/server/session.ts",
+    "src/server/types.ts",
     "apps/**",
     "ecosystem.config.cjs"
   ],

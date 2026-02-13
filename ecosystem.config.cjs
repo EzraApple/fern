@@ -4,8 +4,9 @@ module.exports = {
   apps: [
     {
       name: "fern",
-      script: "dist/index.js",
-      node_args: "--env-file=.env",
+      script: "doppler",
+      args: "run -- node dist/index.js",
+      interpreter: "none",
       autorestart: true,
       max_restarts: 15,
       min_uptime: "10s",

@@ -11,9 +11,40 @@ TRIGGER_FILE="${FERN_DIR}/update-trigger.flag"
 ROLLBACK_FILE="${FERN_DIR}/rollback-trigger.flag"
 BACKUP_DIR="${REPO_DIR}/dist-backup"
 POLL_INTERVAL="${FERN_UPDATER_POLL_INTERVAL:-5}"
+NEW_KEYS_FLAG="${FERN_DIR}/new-env-keys.flag"
 
 log() {
   echo "[$(date +'%Y-%m-%d %H:%M:%S')] [updater] $*"
+}
+
+# Detect new env var keys added to .env.example after a git pull.
+# Writes new key names to a flag file so Fern can alert on startup.
+detect_new_env_keys() {
+  local old_keys_file="$1"
+  local env_example="${REPO_DIR}/.env.example"
+
+  if [[ ! -f "$env_example" ]]; then
+    log "No .env.example found — skipping env key detection"
+    return
+  fi
+
+  # Extract key names (lines matching KEY=..., ignoring comments and blanks)
+  local new_keys
+  new_keys=$(grep -E '^[A-Z_]+=' "$env_example" | cut -d= -f1 | sort)
+
+  if [[ ! -f "$old_keys_file" ]]; then
+    log "No previous env keys to compare — skipping diff"
+    return
+  fi
+
+  local added
+  added=$(comm -13 "$old_keys_file" <(echo "$new_keys"))
+
+  if [[ -n "$added" ]]; then
+    log "New env vars detected in .env.example:"
+    echo "$added" | while read -r key; do log "  + $key"; done
+    echo "$added" > "$NEW_KEYS_FLAG"
+  fi
 }
 
 perform_update() {
@@ -22,6 +53,13 @@ perform_update() {
   rm -f "$TRIGGER_FILE"
 
   cd "$REPO_DIR" || { log "ERROR: Cannot cd to $REPO_DIR"; return 1; }
+
+  # Snapshot current .env.example keys before pulling
+  local old_keys_file
+  old_keys_file=$(mktemp)
+  if [[ -f ".env.example" ]]; then
+    grep -E '^[A-Z_]+=' .env.example | cut -d= -f1 | sort > "$old_keys_file"
+  fi
 
   # Backup current dist/
   rm -rf "$BACKUP_DIR"
@@ -42,6 +80,10 @@ perform_update() {
     restore_backup
     return 1
   fi
+
+  # Check for new env vars added in this update
+  detect_new_env_keys "$old_keys_file"
+  rm -f "$old_keys_file"
 
   # Install dependencies
   log "Running pnpm install..."

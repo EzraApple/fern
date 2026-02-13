@@ -107,6 +107,7 @@ describe("createWhatsAppWebhookRoutes", () => {
       message: "Hi there",
       channelName: "whatsapp",
       channelUserId: "+15551234567",
+      attachments: [],
     });
 
     expect(mockSend).toHaveBeenCalledWith({

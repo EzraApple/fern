@@ -118,7 +118,7 @@ export function getOpenCodeConfig() {
       build: { disable: true },
       title: { disable: true },
       summary: { disable: true },
-      compaction: { disable: true },
+      compaction: {},
 
       fern: {
         description: "Fern AI assistant with multi-channel support",

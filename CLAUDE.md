@@ -10,7 +10,7 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - Agent loop: message → OpenCode SDK → tool execution → response
 - Session storage: OpenCode file-based storage in `~/.local/share/opencode/storage/`
 - HTTP API: Hono server on port 4000 (`/health`, `/chat`, `/webhooks/whatsapp`, `/webhooks/github`, `/api/*` dashboard endpoints)
-- Tools: 20 tools — `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + 4 task tools + `send_message` + `trigger_update` + `trigger_rollback` + built-in coding tools (read, edit, write, bash, glob, grep)
+- Tools: 23 tools — `echo`, `time` + 6 GitHub tools + 3 memory tools + 3 scheduling tools + 4 task tools + 3 subagent tools + `send_message` + `trigger_update` + `trigger_rollback` + built-in coding tools (read, edit, write, bash, glob, grep)
 - WhatsApp channel via Twilio (webhook-based)
 - Dynamic system prompt from `config/SYSTEM_PROMPT.md` with self-improvement workflow
 - OpenCode embedded server (port 4096-4300)
@@ -22,6 +22,7 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - **Skills**: 6 skills (`adding-skills`, `adding-mcps`, `adding-tools`, `self-update`, `verify-update`, `web-research`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
 - **Auto-Update**: GitHub webhook detects pushes to main → agent reviews changes, notifies user, triggers update → updater script (separate pm2 process) pulls/builds/restarts → agent resumes same session for verification → rollback if broken. Thread-session map persisted in SQLite for session continuity across restarts.
 - **Task Tracking**: In-session task/todo system. 4 tools (`task_create`, `task_update`, `task_list`, `task_next`) for breaking complex work into tracked steps. Thread-scoped, flat ordered list, 7-day cleanup for done/cancelled tasks.
+- **Subagents**: Background agent system with 3 specialized types: `explore` (read-only codebase search, fast/no-reasoning, 20 steps), `research` (web search + synthesis, 35 steps), `general` (broad capability, 40 steps). Main agent spawns via `spawn_task`, blocks on results via `check_task`, cancels via `cancel_task`. SQLite task registry, PQueue concurrency, completion callbacks for blocking wait. Agent definitions in OpenCode config with per-agent steps, variant, and permission scoping.
 - **MCP**: Fetch MCP (`@modelcontextprotocol/server-fetch`) for web content retrieval + Tavily MCP (`tavily-mcp`) for AI-optimized web search, extraction, mapping, and crawling. Configured in `src/.opencode/opencode.jsonc`.
 
 ## Quick Commands
@@ -97,9 +98,18 @@ pnpm run dashboard    # Start dashboard dev server (port 3000)
 | `src/tasks/db.ts` | Tasks DB schema + CRUD on `tasks` table in memory DB |
 | `src/tasks/index.ts` | Public exports: initTasks, all DB functions and types |
 | `src/server/tasks-api.ts` | Internal tasks API endpoints (create, list, update, next) |
+| `src/.opencode/tool/spawn-task.ts` | `spawn_task` tool — spawn a background subagent |
+| `src/.opencode/tool/check-task.ts` | `check_task` tool — check/wait for subagent result |
+| `src/.opencode/tool/cancel-task.ts` | `cancel_task` tool — cancel a subagent task |
+| `src/subagent/types.ts` | SubagentType, SubagentTaskStatus, SubagentTask, SubagentConfig |
+| `src/subagent/config.ts` | Subagent config with env var overrides |
+| `src/subagent/db.ts` | Subagent tasks DB schema + CRUD on `subagent_tasks` table |
+| `src/subagent/executor.ts` | PQueue execution, completion callbacks, spawnTask/waitForTask |
+| `src/subagent/index.ts` | Public exports: initSubagent, stopSubagent, all DB functions and types |
+| `src/server/subagent-api.ts` | Internal subagent API endpoints (spawn, check, cancel, list) |
 | `src/.opencode/skill/self-update/` | Pre-update skill — review changes, notify user, trigger deploy |
 | `src/.opencode/skill/verify-update/` | Post-update skill — health checks, rollback, fix PR guidance |
-| `src/server/server.ts` | HTTP routes (includes internal memory, scheduler, tasks, channel, and dashboard APIs) |
+| `src/server/server.ts` | HTTP routes (includes internal memory, scheduler, tasks, subagent, channel, and dashboard APIs) |
 | `src/server/dashboard-api.ts` | Public dashboard API endpoints (sessions, memories, archives, GitHub PRs, tools) |
 | `src/server/memory-api.ts` | Internal memory API endpoints (write, search, read, delete) |
 | `src/server/scheduler-api.ts` | Internal scheduler API endpoints (create, list, get, cancel) |
@@ -177,7 +187,7 @@ MCP (Model Context Protocol) servers provide external tools, configured in `src/
 - **`src/core/prompt.ts` is the single source of truth** for prompt composition (not `core/opencode/`)
 - Base prompt in `config/SYSTEM_PROMPT.md` with `{{TOOLS}}` and `{{CHANNEL_CONTEXT}}` placeholders
 - Tool descriptions auto-generated from registry at runtime (never hardcoded)
-- Channel-specific prompts defined in `CHANNEL_PROMPTS` record in `prompt.ts` (whatsapp, webchat, scheduler)
+- Channel-specific prompts defined in `CHANNEL_PROMPTS` record in `prompt.ts` (whatsapp, webchat, scheduler, subagent)
 - `buildSystemPrompt()` loads base prompt, replaces placeholders, injects channel context
 - Prompt loaded once and cached via `loadBasePrompt()`
 - Self-improvement detection is pattern-based (intent, not exact phrasing) with context-gated confirmation
@@ -246,6 +256,19 @@ MCP (Model Context Protocol) servers provide external tools, configured in `src/
 - **Cleanup**: 7-day auto-cleanup of done/cancelled tasks on startup.
 - **Session ID injection**: `buildSystemPrompt()` injects session ID into channel context so agent can pass it to task tools.
 
+### Subagent System
+- **Storage**: SQLite `subagent_tasks` table in existing `~/.fern/memory/fern.db` (shared with memory, scheduler, tasks)
+- **3 agent types**: `explore` (read-only codebase search, reasoning OFF via `fast` variant, 20 steps), `research` (web search + synthesis, reasoning ON, 35 steps), `general` (broad capability incl. file editing + bash, reasoning ON, 40 steps)
+- **Model**: All subagents inherit Kimi K2.5 from main config. Explore uses `variant: "fast"` which sets `reasoning: false` (non-thinking mode) for cost savings.
+- **Spawn-on-demand**: No background polling loop (unlike scheduler). Tasks created via `spawn_task` tool, executed immediately on PQueue with configurable concurrency (default: 3).
+- **Completion callbacks**: `Map<taskId, {resolve, reject}>` enables `check_task(wait=true)` to block until subagent finishes. Pattern mirrors `sessionCompletionCallbacks` in `session.ts`.
+- **Execution**: `executeTask` calls `runAgentLoop()` with `channelName: "subagent"` and `agentType` matching the agent definition in OpenCode config. Result is the agent's final text response.
+- **Atomic claiming**: `claimSubagentTask` does `UPDATE ... WHERE status = 'pending'` + checks `changes === 1` to prevent race conditions.
+- **Stale recovery**: On startup, running tasks → **failed** (not pending — subagent tasks are one-shot, non-retriable).
+- **HTTP proxy pattern**: Same as memory/scheduler/tasks — OpenCode tools call internal API (`/internal/subagent/*`) via `fetch()`.
+- **3 tools**: `spawn_task` (create + enqueue), `check_task` (block or poll for result), `cancel_task` (mark cancelled).
+- **Config via env vars**: `FERN_SUBAGENT_ENABLED`, `FERN_SUBAGENT_MAX_CONCURRENT`
+
 ### Observability Dashboard (Phase 4)
 - **Dashboard API**: Public REST endpoints at `/api/*` on the Fern server (`src/server/dashboard-api.ts`)
 - **Dashboard App**: Next.js 15 app in `apps/dashboard/` (pnpm monorepo workspace, runs on port 3000)
@@ -255,7 +278,7 @@ MCP (Model Context Protocol) servers provide external tools, configured in `src/
 - **Views**: Overview, Sessions, Memory (3 tabs), Tools, GitHub, Costs
 
 ### Hardening (Security + Ops)
-- **Internal API auth**: Shared-secret middleware (`src/server/internal-auth.ts`) protects `/internal/*` routes. Checks `X-Fern-Secret` header against `FERN_API_SECRET` env var. Passthrough when not configured (dev mode). All 6 OpenCode tools include the header via `getAuthHeaders()`.
+- **Internal API auth**: Shared-secret middleware (`src/server/internal-auth.ts`) protects `/internal/*` routes. Checks `X-Fern-Secret` header against `FERN_API_SECRET` env var. Passthrough when not configured (dev mode). All OpenCode tools that call internal APIs include the header via `getAuthHeaders()`.
 - **Twilio webhook verification**: `src/server/webhooks.ts` validates `X-Twilio-Signature` against `FERN_WEBHOOK_URL` env var. Uses `adapter.validateWebhook()` which calls `twilio.validateRequest()`. Skipped when URL not configured (dev mode).
 - **Watchdog**: `src/core/watchdog.ts` tracks consecutive failures for OpenCode (file-persisted across pm2 restarts) and scheduler (in-memory). Triggers alert + shutdown when thresholds exceeded. Config via `FERN_WATCHDOG_MAX_OPENCODE_FAILURES` and `FERN_WATCHDOG_MAX_SCHEDULER_FAILURES`.
 - **Alerts**: `src/core/alerts.ts` sends WhatsApp messages directly via `TwilioGateway` (not through agent loop) to `FERN_ALERT_PHONE`. Retries 3x with 2s delay.
@@ -274,10 +297,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full system design with diagrams.
 **Key layers:**
 - **Core Runtime**: OpenCode SDK manages agent loop, sessions, and tool execution
 - **OpenCode Service**: Embedded server, client management, event streaming
-- **Tools**: 18 tools auto-discovered from `.opencode/tool/`, native module access via HTTP proxy
+- **Tools**: 23 tools auto-discovered from `.opencode/tool/`, native module access via HTTP proxy
 - **Channel Adapters**: WhatsApp (Twilio)
 - **Memory**: SQLite + sqlite-vec, async archival, persistent memories, hybrid search
 - **Scheduling**: SQLite job queue, cron support, background polling loop
+- **Subagents**: Background agent spawning (explore/research/general), PQueue concurrency, completion callbacks
 - **Observability**: Dashboard API + Next.js 15 app
 - **Self-Improvement**: PR-only code modifications with human approval
 
@@ -319,9 +343,10 @@ fern/                              # pnpm monorepo
 │   │   └── db/                    # SQLite database (schema, summaries, memories, thread-sessions)
 │   ├── scheduler/                 # Job scheduling (types, config, db, loop)
 │   ├── tasks/                     # In-session task tracking (types, db, index)
+│   ├── subagent/                  # Background subagents (types, config, db, executor)
 │   └── .opencode/                 # OpenCode configuration
 │       ├── opencode.jsonc         # MCP servers, permissions
-│       ├── tool/                  # 16 tools (auto-discovered by OpenCode)
+│       ├── tool/                  # 19 tools (auto-discovered by OpenCode)
 │       └── skill/                 # On-demand skills (adding-skills, adding-mcps, adding-tools, self-update, verify-update, web-research)
 ├── apps/
 │   └── dashboard/                 # Next.js 15 observability dashboard

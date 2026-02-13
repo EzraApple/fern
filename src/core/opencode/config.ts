@@ -51,6 +51,7 @@ export function getOpenCodeConfig() {
           reasoning?: boolean;
           temperature?: boolean;
           limit?: { context: number; output: number };
+          variants?: Record<string, { reasoning?: boolean; disabled?: boolean }>;
         }
       >;
     }
@@ -73,14 +74,17 @@ export function getOpenCodeConfig() {
       },
       models: {
         "kimi-k2.5": {
-          name: "Kimi K2.5 Preview",
+          name: "Kimi K2.5",
           tool_call: true,
           attachment: false,
-          reasoning: false,
+          reasoning: true,
           temperature: true,
           limit: {
             context: 131072,
             output: 8192,
+          },
+          variants: {
+            fast: { reasoning: false },
           },
         },
       },
@@ -112,6 +116,58 @@ export function getOpenCodeConfig() {
       fern: {
         description: "Fern AI assistant with multi-channel support",
         prompt: "You are Fern, a helpful AI assistant.",
+      },
+      explore: {
+        description: "Read-only codebase exploration agent",
+        mode: "subagent" as const,
+        hidden: true,
+        steps: 20,
+        variant: "fast",
+        prompt:
+          "You are a codebase exploration agent. Search code, read files, and report findings. Be surgical — find the relevant files, read them, and stop. When you have enough information, write your response immediately.",
+        permission: {
+          read: "allow" as const,
+          grep: "allow" as const,
+          glob: "allow" as const,
+          bash: "deny" as const,
+          edit: "deny" as const,
+          write: "deny" as const,
+          webfetch: "deny" as const,
+        },
+      },
+      research: {
+        description: "Web research and synthesis agent",
+        mode: "subagent" as const,
+        hidden: true,
+        steps: 35,
+        prompt:
+          "You are a research agent. Search the web, read documentation, and synthesize findings into clear, actionable information. Be thorough but concise.",
+        permission: {
+          read: "allow" as const,
+          grep: "allow" as const,
+          glob: "allow" as const,
+          bash: "deny" as const,
+          edit: "deny" as const,
+          write: "deny" as const,
+          webfetch: "allow" as const,
+        },
+      },
+      general: {
+        description: "General-purpose subagent for broad tasks",
+        mode: "subagent" as const,
+        hidden: true,
+        steps: 40,
+        prompt:
+          "You are a general-purpose agent. Complete the assigned task thoroughly using whatever tools are appropriate.",
+        permission: {
+          read: "allow" as const,
+          grep: "allow" as const,
+          glob: "allow" as const,
+          bash: "allow" as const,
+          edit: "allow" as const,
+          write: "allow" as const,
+          webfetch: "allow" as const,
+        },
       },
     },
 

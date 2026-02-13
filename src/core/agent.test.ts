@@ -308,6 +308,31 @@ describe("agent", () => {
       );
     });
 
+    it("should pass agentType to prompt when provided", async () => {
+      const subagentInput: AgentInput = {
+        sessionId: "subagent_sub_123",
+        message: "Find files",
+        channelName: "subagent",
+        agentType: "explore",
+      };
+
+      await runAgentLoop(subagentInput);
+
+      expect(mockPrompt).toHaveBeenCalledWith("oc-session-123", "Find files", {
+        system: "You are Fern, a helpful assistant.",
+        agent: "explore",
+      });
+    });
+
+    it("should default agent to fern when agentType not provided", async () => {
+      await runAgentLoop(defaultInput);
+
+      expect(mockPrompt).toHaveBeenCalledWith("oc-session-123", "Hello Fern!", {
+        system: "You are Fern, a helpful assistant.",
+        agent: "fern",
+      });
+    });
+
     it("should pass channelUserId when provided", async () => {
       const inputWithUser: AgentInput = {
         sessionId: "whatsapp_+1234567890",

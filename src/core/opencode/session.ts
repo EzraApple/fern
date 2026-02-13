@@ -1,4 +1,5 @@
 import { getClient } from "@/core/opencode/server.js";
+import type { ImageAttachment } from "@/core/types.js";
 import {
   deleteStaleThreadSessions,
   getThreadSession,
@@ -147,12 +148,6 @@ export function signalSessionError(sessionId: string, error: string): void {
   }
 }
 
-/** Image attachment for multimodal prompts */
-export interface PromptImage {
-  url: string;
-  mimeType: string;
-}
-
 /** Part types for OpenCode multimodal prompts */
 interface TextPart {
   type: "text";
@@ -177,7 +172,7 @@ export async function prompt(
   options?: {
     agent?: string; // Specify which agent to use
     system?: string; // Override system prompt
-    images?: PromptImage[]; // Image attachments
+    images?: ImageAttachment[]; // Image attachments
   }
 ): Promise<void> {
   const client = await getClient();

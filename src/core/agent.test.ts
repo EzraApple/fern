@@ -350,5 +350,45 @@ describe("agent", () => {
         "whatsapp_+1234567890"
       );
     });
+
+    it("should pass images to prompt when provided", async () => {
+      const inputWithImages: AgentInput = {
+        sessionId: "whatsapp_+1234567890",
+        message: "What's in this photo?",
+        channelName: "whatsapp",
+        images: [{ url: "data:image/jpeg;base64,abc123", mimeType: "image/jpeg" }],
+      };
+
+      await runAgentLoop(inputWithImages);
+
+      expect(mockPrompt).toHaveBeenCalledWith("oc-session-123", "What's in this photo?", {
+        system: "You are Fern, a helpful assistant.",
+        agent: "fern",
+        images: [{ url: "data:image/jpeg;base64,abc123", mimeType: "image/jpeg" }],
+      });
+    });
+
+    it("should pass multiple images to prompt", async () => {
+      const inputWithImages: AgentInput = {
+        sessionId: "whatsapp_+1234567890",
+        message: "Compare these",
+        channelName: "whatsapp",
+        images: [
+          { url: "data:image/jpeg;base64,img1", mimeType: "image/jpeg" },
+          { url: "data:image/png;base64,img2", mimeType: "image/png" },
+        ],
+      };
+
+      await runAgentLoop(inputWithImages);
+
+      expect(mockPrompt).toHaveBeenCalledWith("oc-session-123", "Compare these", {
+        system: "You are Fern, a helpful assistant.",
+        agent: "fern",
+        images: [
+          { url: "data:image/jpeg;base64,img1", mimeType: "image/jpeg" },
+          { url: "data:image/png;base64,img2", mimeType: "image/png" },
+        ],
+      });
+    });
   });
 });

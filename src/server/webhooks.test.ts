@@ -8,6 +8,7 @@ vi.mock("@/core/index.js", () => ({
 // Mock the config
 vi.mock("@/config/config.js", () => ({
   getWebhookBaseUrl: vi.fn(),
+  getTwilioCredentials: vi.fn(),
 }));
 
 // Mock the WhatsApp adapter
@@ -33,13 +34,18 @@ const mockAdapter = {
 };
 
 import type { WhatsAppAdapter } from "@/channels/whatsapp/index.js";
-import { getWebhookBaseUrl } from "@/config/config.js";
+import { getTwilioCredentials, getWebhookBaseUrl } from "@/config/config.js";
 import { runAgentLoop } from "@/core/index.js";
-import { createWhatsAppWebhookRoutes } from "@/server/webhooks.js";
+import {
+  createWhatsAppWebhookRoutes,
+  downloadMediaAsBase64,
+  extractImageMedia,
+} from "@/server/webhooks.js";
 import { Hono } from "hono";
 
 const mockRunAgentLoop = vi.mocked(runAgentLoop);
 const mockGetWebhookBaseUrl = vi.mocked(getWebhookBaseUrl);
+const mockGetTwilioCredentials = vi.mocked(getTwilioCredentials);
 
 /** Flush pending microtasks so fire-and-forget async work completes */
 async function flushAsync() {
@@ -52,6 +58,11 @@ describe("createWhatsAppWebhookRoutes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetWebhookBaseUrl.mockReturnValue(null);
+    mockGetTwilioCredentials.mockReturnValue({
+      accountSid: "ACtest123",
+      authToken: "test-auth-token",
+      fromNumber: "+15550001111",
+    });
     const root = new Hono();
     root.route(
       "/webhooks/whatsapp",
@@ -386,6 +397,316 @@ describe("createWhatsAppWebhookRoutes", () => {
 
       expect(res.status).toBe(202);
       expect(mockAdapter.validateWebhook).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Image support", () => {
+    it("accepts image-only messages (no Body, has media)", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(Buffer.from("fake-image-bytes"), { status: 200 }));
+      mockRunAgentLoop.mockResolvedValue({
+        response: "I see an image!",
+        sessionId: "whatsapp_+15551234567",
+        toolCalls: [],
+      });
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("NumMedia", "1");
+      formData.set("MediaUrl0", "https://api.twilio.com/media/img0");
+      formData.set("MediaContentType0", "image/jpeg");
+
+      const res = await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      expect(res.status).toBe(202);
+
+      // Wait for background block to finish (includes async download steps)
+      await vi.waitFor(() => {
+        expect(mockRunAgentLoop).toHaveBeenCalled();
+      });
+
+      expect(mockRunAgentLoop).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "(Image received)",
+          images: [
+            expect.objectContaining({
+              mimeType: "image/jpeg",
+              url: expect.stringMatching(/^data:image\/jpeg;base64,/),
+            }),
+          ],
+        })
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it("downloads images and converts to base64 data URLs", async () => {
+      const imageBytes = Buffer.from("png-image-data");
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(imageBytes, { status: 200 }));
+      mockRunAgentLoop.mockResolvedValue({
+        response: "ok",
+        sessionId: "whatsapp_+15551234567",
+        toolCalls: [],
+      });
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("Body", "What's this?");
+      formData.set("NumMedia", "1");
+      formData.set("MediaUrl0", "https://api.twilio.com/media/img0");
+      formData.set("MediaContentType0", "image/png");
+
+      await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      await vi.waitFor(() => {
+        expect(mockRunAgentLoop).toHaveBeenCalled();
+      });
+
+      // Verify fetch was called with Twilio Basic auth
+      expect(fetchSpy).toHaveBeenCalledWith("https://api.twilio.com/media/img0", {
+        headers: {
+          Authorization: `Basic ${Buffer.from("ACtest123:test-auth-token").toString("base64")}`,
+        },
+      });
+
+      // Verify the base64 data URL was passed to agent
+      const expectedDataUrl = `data:image/png;base64,${imageBytes.toString("base64")}`;
+      expect(mockRunAgentLoop).toHaveBeenCalledWith(
+        expect.objectContaining({
+          images: [{ url: expectedDataUrl, mimeType: "image/png" }],
+        })
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it("handles multiple images", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(async () => new Response(Buffer.from("img"), { status: 200 }));
+      mockRunAgentLoop.mockResolvedValue({
+        response: "ok",
+        sessionId: "whatsapp_+15551234567",
+        toolCalls: [],
+      });
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("Body", "Two photos");
+      formData.set("NumMedia", "2");
+      formData.set("MediaUrl0", "https://api.twilio.com/media/img0");
+      formData.set("MediaContentType0", "image/jpeg");
+      formData.set("MediaUrl1", "https://api.twilio.com/media/img1");
+      formData.set("MediaContentType1", "image/png");
+
+      await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      await vi.waitFor(() => {
+        expect(mockRunAgentLoop).toHaveBeenCalled();
+      });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(mockRunAgentLoop).toHaveBeenCalledWith(
+        expect.objectContaining({
+          images: [
+            expect.objectContaining({ mimeType: "image/jpeg" }),
+            expect.objectContaining({ mimeType: "image/png" }),
+          ],
+        })
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it("skips non-image media types", async () => {
+      mockRunAgentLoop.mockResolvedValue({
+        response: "ok",
+        sessionId: "whatsapp_+15551234567",
+        toolCalls: [],
+      });
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("Body", "Here's a video");
+      formData.set("NumMedia", "1");
+      formData.set("MediaUrl0", "https://api.twilio.com/media/vid0");
+      formData.set("MediaContentType0", "video/mp4");
+
+      await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      await flushAsync();
+
+      // No images should be passed (video is not an image)
+      expect(mockRunAgentLoop).toHaveBeenCalledWith(
+        expect.objectContaining({
+          images: undefined,
+        })
+      );
+    });
+
+    it("continues without images when download fails", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network error"));
+      mockRunAgentLoop.mockResolvedValue({
+        response: "ok",
+        sessionId: "whatsapp_+15551234567",
+        toolCalls: [],
+      });
+
+      const formData = new URLSearchParams();
+      formData.set("From", "whatsapp:+15551234567");
+      formData.set("Body", "Photo");
+      formData.set("NumMedia", "1");
+      formData.set("MediaUrl0", "https://api.twilio.com/media/img0");
+      formData.set("MediaContentType0", "image/jpeg");
+
+      await app.request("/webhooks/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      await vi.waitFor(() => {
+        expect(mockRunAgentLoop).toHaveBeenCalled();
+      });
+
+      // Agent still runs, just without images
+      expect(mockRunAgentLoop).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Photo",
+          images: undefined,
+        })
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "[WhatsApp] Failed to download media:",
+        expect.any(Error)
+      );
+
+      consoleSpy.mockRestore();
+      fetchSpy.mockRestore();
+    });
+  });
+
+  describe("extractImageMedia", () => {
+    it("returns empty array when NumMedia is 0", () => {
+      expect(extractImageMedia({ NumMedia: "0" })).toEqual([]);
+    });
+
+    it("returns empty array when NumMedia is missing", () => {
+      expect(extractImageMedia({})).toEqual([]);
+    });
+
+    it("extracts single image", () => {
+      const result = extractImageMedia({
+        NumMedia: "1",
+        MediaUrl0: "https://api.twilio.com/media/img0",
+        MediaContentType0: "image/jpeg",
+      });
+      expect(result).toEqual([
+        { url: "https://api.twilio.com/media/img0", mimeType: "image/jpeg" },
+      ]);
+    });
+
+    it("extracts multiple images", () => {
+      const result = extractImageMedia({
+        NumMedia: "2",
+        MediaUrl0: "https://api.twilio.com/media/img0",
+        MediaContentType0: "image/jpeg",
+        MediaUrl1: "https://api.twilio.com/media/img1",
+        MediaContentType1: "image/png",
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0]?.mimeType).toBe("image/jpeg");
+      expect(result[1]?.mimeType).toBe("image/png");
+    });
+
+    it("skips non-image media types", () => {
+      const result = extractImageMedia({
+        NumMedia: "2",
+        MediaUrl0: "https://api.twilio.com/media/vid0",
+        MediaContentType0: "video/mp4",
+        MediaUrl1: "https://api.twilio.com/media/img1",
+        MediaContentType1: "image/png",
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0]?.mimeType).toBe("image/png");
+    });
+
+    it("skips entries with missing URL", () => {
+      const result = extractImageMedia({
+        NumMedia: "1",
+        MediaContentType0: "image/jpeg",
+      });
+      expect(result).toEqual([]);
+    });
+
+    it("skips entries with missing content type", () => {
+      const result = extractImageMedia({
+        NumMedia: "1",
+        MediaUrl0: "https://api.twilio.com/media/img0",
+      });
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("downloadMediaAsBase64", () => {
+    it("downloads and converts to base64 data URL", async () => {
+      const imageBytes = Buffer.from("test-image-content");
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(imageBytes, { status: 200 }));
+
+      const result = await downloadMediaAsBase64("https://api.twilio.com/media/img0", "image/jpeg");
+
+      expect(result).toBe(`data:image/jpeg;base64,${imageBytes.toString("base64")}`);
+      expect(fetchSpy).toHaveBeenCalledWith("https://api.twilio.com/media/img0", {
+        headers: {
+          Authorization: `Basic ${Buffer.from("ACtest123:test-auth-token").toString("base64")}`,
+        },
+      });
+
+      fetchSpy.mockRestore();
+    });
+
+    it("throws when Twilio credentials are not configured", async () => {
+      mockGetTwilioCredentials.mockReturnValue(null);
+
+      await expect(
+        downloadMediaAsBase64("https://api.twilio.com/media/img0", "image/jpeg")
+      ).rejects.toThrow("Twilio credentials not configured");
+    });
+
+    it("throws when HTTP response is not ok", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(
+          new Response("Unauthorized", { status: 401, statusText: "Unauthorized" })
+        );
+
+      await expect(
+        downloadMediaAsBase64("https://api.twilio.com/media/img0", "image/jpeg")
+      ).rejects.toThrow("Failed to download media: 401 Unauthorized");
+
+      fetchSpy.mockRestore();
     });
   });
 });

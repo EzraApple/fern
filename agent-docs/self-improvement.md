@@ -249,6 +249,27 @@ The PR workflow itself (clone → branch → modify → test → commit → push
 
 **Branch protection** is configured on GitHub (main branch requires PRs and CI checks), so direct pushes to main are blocked at the repository level.
 
+## Feature Implementation Workflow
+
+For features or fixes involving 2+ files, the agent loads the `feature-implementation` skill which enforces a structured workflow:
+
+1. **Understand** — Read existing code, identify affected files, understand patterns. Research unfamiliar external APIs.
+2. **Plan** — Create tasks that reference specific files and patterns found in step 1.
+3. **Implement** — Edit files sequentially, following existing conventions.
+4. **Validate** — Run lint, tsc, and tests in the workspace.
+5. **Submit** — Single PR with structured description.
+
+Key principles enforced by the skill:
+- ALWAYS edit existing files. Never create duplicates.
+- Read code before creating tasks. Tasks based on assumptions are wrong tasks.
+- YOU are the implementer. Subagents are for parallel research and exploration, not for writing code.
+- Never delete existing exports from any file.
+- Research unfamiliar external APIs before writing code against them.
+
+The PR workflow above handles git mechanics (clone → branch → commit → push → PR). The `feature-implementation` skill handles code strategy (what to change, in which files, following which patterns).
+
+**Codebase navigation**: See `agent-docs/codebase-navigation.md` for a practical map of which files to look at for different kinds of changes, including module boundaries, file relationships, and import conventions.
+
 ## Improvement Triggers
 
 ### 1. User Request

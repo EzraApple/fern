@@ -19,7 +19,7 @@ A self-improving headless AI agent with WhatsApp support, persistent memory, obs
 - **Phase 4: Observability** - Next.js 15 dashboard app (`apps/dashboard/`) with views for sessions, memory, tools, GitHub PRs, and costs. Dashboard API at `/api/*` on the Fern server.
 - **Phase 5: Scheduling** - SQLite job queue in existing memory DB. `schedule` tool creates one-shot or recurring (cron) jobs. Each job is a prompt that fires a fresh agent session — agent has full autonomy to decide what tools to use and what channels to message. `send_message` tool enables proactive outbound messaging to any channel. Background loop polls every 60s.
 - **Hardening**: Internal API auth (shared-secret middleware), Twilio webhook signature verification, watchdog with WhatsApp failure alerts, pm2 process supervision.
-- **Skills**: 6 skills (`adding-skills`, `adding-mcps`, `adding-tools`, `self-update`, `verify-update`, `web-research`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
+- **Skills**: 7 skills (`adding-skills`, `adding-mcps`, `adding-tools`, `feature-implementation`, `self-update`, `verify-update`, `web-research`) loaded on-demand via OpenCode's `skill` tool. Auto-accepted (no confirmation prompt) for unattended operation.
 - **Auto-Update**: GitHub webhook detects pushes to main → agent reviews changes, notifies user, triggers update → updater script (separate pm2 process) pulls/builds/restarts → agent resumes same session for verification → rollback if broken. Thread-session map persisted in SQLite for session continuity across restarts.
 - **Task Tracking**: In-session task/todo system. 4 tools (`task_create`, `task_update`, `task_list`, `task_next`) for breaking complex work into tracked steps. Thread-scoped, flat ordered list, 7-day cleanup for done/cancelled tasks.
 - **Subagents**: Background agent system with 3 specialized types: `explore` (read-only codebase search, fast/no-reasoning, 20 steps), `research` (web search + synthesis, 35 steps), `general` (broad capability, 40 steps). Main agent spawns via `spawn_task`, blocks on results via `check_task`, cancels via `cancel_task`. SQLite task registry, PQueue concurrency, completion callbacks for blocking wait. Agent definitions in OpenCode config with per-agent steps, variant, and permission scoping.
@@ -161,7 +161,7 @@ Skills are on-demand Markdown instruction files in `src/.opencode/skill/<name>/S
 Key points:
 - YAML frontmatter with `name` (must match directory) and `description` (the trigger — only thing LLM sees before loading)
 - Auto-accepted (`"permission": { "skill": "allow" }` in `opencode.jsonc`) for unattended operation
-- Current skills: `adding-skills`, `adding-mcps`, `adding-tools`, `web-research`
+- Current skills: `adding-skills`, `adding-mcps`, `adding-tools`, `feature-implementation`, `web-research`
 
 ### MCP Servers
 MCP (Model Context Protocol) servers provide external tools, configured in `src/.opencode/opencode.jsonc`:
@@ -323,6 +323,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full system design with diagrams.
 |-----|----------------|
 | [implementing-tools](agent-docs/implementing-tools.md) | Adding new tools using OpenCode plugin format, HTTP proxy pattern |
 | [implementing-channels](agent-docs/implementing-channels.md) | Adding channel adapters, formatting output, channel prompts |
+| [codebase-navigation](agent-docs/codebase-navigation.md) | Finding the right file to edit, module boundaries, import conventions |
 | [memory-system](agent-docs/memory-system.md) | Working with session/persistent memory, search, compaction |
 | [session-management](agent-docs/session-management.md) | OpenCode session management, context window, archival |
 | [self-improvement](agent-docs/self-improvement.md) | PR-based self-modification, safety boundaries |

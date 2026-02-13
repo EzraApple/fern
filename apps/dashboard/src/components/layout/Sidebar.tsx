@@ -3,6 +3,7 @@
 import { clsx } from "clsx";
 import {
   Brain,
+  Calendar,
   DollarSign,
   GitPullRequest,
   LayoutDashboard,
@@ -17,6 +18,7 @@ const navItems = [
   { href: "/sessions", label: "Sessions", icon: MessageSquare },
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/tools", label: "Tools", icon: Wrench },
+  { href: "/scheduler", label: "Scheduler", icon: Calendar },
   { href: "/github", label: "GitHub", icon: GitPullRequest },
   { href: "/costs", label: "Costs", icon: DollarSign },
 ];

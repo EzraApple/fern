@@ -2,7 +2,7 @@
 
 import { ChatView } from "@/components/session/ChatView";
 import { useSession, useSessionMessages } from "@/lib/hooks";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -22,7 +22,7 @@ export default function SessionDetailPage() {
         >
           <ArrowLeft size={18} />
         </Link>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="text-lg font-bold truncate" style={{ color: "var(--text-primary)" }}>
             {session?.title || id}
           </h1>
@@ -32,6 +32,15 @@ export default function SessionDetailPage() {
             </p>
           )}
         </div>
+        <a
+          href={`/api/sessions/${id}/export`}
+          download
+          className="p-1.5 rounded hover:bg-[var(--bg-hover)] transition-colors"
+          style={{ color: "var(--text-secondary)" }}
+          title="Export session as JSON"
+        >
+          <Download size={16} />
+        </a>
       </div>
 
       {/* Chat */}

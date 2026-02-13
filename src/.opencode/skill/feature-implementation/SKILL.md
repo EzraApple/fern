@@ -129,7 +129,14 @@ All file paths in the workspace are relative to the workspace root (the path ret
 
 ## Phase 4: Validate
 
-Before creating the PR, run ALL validation in the workspace:
+### 4a. Write tests for new functionality
+
+If your changes add new behavior (new functions, new code paths, new edge cases), write tests for them. Look at existing test files adjacent to the code you changed for patterns:
+- Test file naming: `<module>.test.ts` next to `<module>.ts`
+- Mock patterns: check how existing tests mock dependencies
+- Cover the happy path AND edge cases your feature handles
+
+### 4b. Run all validation in the workspace
 
 ```bash
 cd <workspace_path> && pnpm install && pnpm run lint && pnpm run tsc && pnpm run test

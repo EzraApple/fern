@@ -1,3 +1,8 @@
+export interface ImageAttachment {
+  url: string;
+  mimeType: string;
+}
+
 export interface AgentInput {
   sessionId: string;
   message: string;
@@ -6,6 +11,8 @@ export interface AgentInput {
   channelUserId?: string;
   /** OpenCode agent to use (defaults to "fern") */
   agentType?: string;
+  /** Image attachments to include with the message */
+  images?: ImageAttachment[];
 }
 
 export interface ToolCallRecord {

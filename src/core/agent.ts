@@ -48,6 +48,7 @@ export async function runAgentLoop(input: AgentInput): Promise<AgentResult> {
     await prompt(sessionId, input.message, {
       system: systemPrompt,
       agent: input.agentType ?? "fern",
+      images: input.images,
     });
 
     // 5. Get response from OpenCode

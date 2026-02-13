@@ -1,4 +1,5 @@
 import { getClient } from "@/core/opencode/server.js";
+import type { ImageAttachment } from "@/core/types.js";
 import {
   deleteStaleThreadSessions,
   getThreadSession,
@@ -147,6 +148,20 @@ export function signalSessionError(sessionId: string, error: string): void {
   }
 }
 
+/** Part types for OpenCode multimodal prompts */
+interface TextPart {
+  type: "text";
+  text: string;
+}
+
+interface FilePart {
+  type: "file";
+  mime: string;
+  url: string;
+}
+
+type PromptPart = TextPart | FilePart;
+
 /**
  * Send a prompt to a session and wait for completion
  * Completion is detected via session.idle event in the event stream
@@ -157,6 +172,7 @@ export async function prompt(
   options?: {
     agent?: string; // Specify which agent to use
     system?: string; // Override system prompt
+    images?: ImageAttachment[]; // Image attachments
   }
 ): Promise<void> {
   const client = await getClient();
@@ -182,12 +198,20 @@ export async function prompt(
 
   const agentToUse = options?.agent ?? "fern";
 
+  // Build parts array - text first, then images
+  const parts: PromptPart[] = [{ type: "text", text }];
+  if (options?.images && options.images.length > 0) {
+    for (const image of options.images) {
+      parts.push({ type: "file", mime: image.mimeType, url: image.url });
+    }
+  }
+
   try {
     // Submit the prompt
     await client.session.prompt({
       path: { id: sessionId },
       body: {
-        parts: [{ type: "text", text }],
+        parts,
         agent: agentToUse,
         system: options?.system,
       },

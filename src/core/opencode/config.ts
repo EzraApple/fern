@@ -113,6 +113,13 @@ export function getOpenCodeConfig() {
     // Custom agent definition — prompt.ts is the source of truth for prompt
     // composition; this is just a fallback for the OpenCode agent config.
     agent: {
+      // Disable SDK built-in agents we don't use
+      plan: { disable: true },
+      build: { disable: true },
+      title: { disable: true },
+      summary: { disable: true },
+      compaction: { disable: true },
+
       fern: {
         description: "Fern AI assistant with multi-channel support",
         prompt: "You are Fern, a helpful AI assistant.",

@@ -36,3 +36,13 @@ export function usePRs(state = "all") {
 export function useTools() {
   return useSWR("tools", () => api.fetchTools());
 }
+
+export function useScheduledJobs(status?: string) {
+  return useSWR(
+    ["scheduled-jobs", status],
+    () => api.fetchScheduledJobs({ status: status || undefined }),
+    {
+      refreshInterval: 10_000,
+    }
+  );
+}

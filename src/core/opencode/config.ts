@@ -76,7 +76,7 @@ export function getOpenCodeConfig() {
         "kimi-k2.5": {
           name: "Kimi K2.5",
           tool_call: true,
-          attachment: false,
+          attachment: true,
           reasoning: true,
           temperature: true,
           limit: {

@@ -390,5 +390,86 @@ describe("agent", () => {
         ],
       });
     });
+
+    describe("transient error retry", () => {
+      it("should retry once on 'fetch failed' and succeed", async () => {
+        const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        // First attempt fails with fetch failed, second succeeds
+        mockGetOrCreateSession
+          .mockRejectedValueOnce(new Error("fetch failed"))
+          .mockResolvedValueOnce({ sessionId: "oc-session-123" });
+
+        const result = await runAgentLoop(defaultInput);
+
+        expect(result.response).toBe("Hello from Fern!");
+        expect(mockGetOrCreateSession).toHaveBeenCalledTimes(2);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Transient error (attempt 1/2)")
+        );
+        consoleSpy.mockRestore();
+      });
+
+      it("should retry once on 'ECONNREFUSED' and succeed", async () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        mockPrompt
+          .mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1:4096"))
+          .mockResolvedValueOnce(undefined);
+
+        const result = await runAgentLoop(defaultInput);
+
+        expect(result.response).toBe("Hello from Fern!");
+        expect(mockPrompt).toHaveBeenCalledTimes(2);
+        vi.restoreAllMocks();
+      });
+
+      it("should return error after retry exhausted", async () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        mockGetOrCreateSession.mockRejectedValue(new Error("fetch failed"));
+
+        const result = await runAgentLoop(defaultInput);
+
+        expect(result.response).toContain("I encountered an error: fetch failed");
+        expect(mockGetOrCreateSession).toHaveBeenCalledTimes(2);
+        vi.restoreAllMocks();
+      });
+
+      it("should not retry non-transient errors", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        mockPrompt.mockRejectedValue(new Error("Invalid API key"));
+
+        const result = await runAgentLoop(defaultInput);
+
+        expect(result.response).toContain("I encountered an error: Invalid API key");
+        // Only called once — no retry
+        expect(mockPrompt).toHaveBeenCalledTimes(1);
+        vi.restoreAllMocks();
+      });
+
+      it("should not retry timeout errors", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        const { AgentTimeoutError } = await import("@/core/opencode/session.js");
+        mockPrompt.mockRejectedValue(new AgentTimeoutError("oc-session-123", 480000));
+
+        const result = await runAgentLoop(defaultInput);
+
+        expect(result.response).toContain("took too long");
+        expect(mockPrompt).toHaveBeenCalledTimes(1);
+        vi.restoreAllMocks();
+      });
+
+      it("should clean up event subscription before retrying", async () => {
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        mockGetOrCreateSession
+          .mockRejectedValueOnce(new Error("fetch failed"))
+          .mockResolvedValueOnce({ sessionId: "oc-session-123" });
+
+        await runAgentLoop(defaultInput);
+
+        // Unsubscribe called twice: once on failed attempt cleanup, once on success
+        expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+        vi.restoreAllMocks();
+      });
+    });
   });
 });
